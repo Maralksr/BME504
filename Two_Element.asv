@@ -10,15 +10,7 @@
 % Total muscle force determined by this two-element model
 % Force is the sum of the force from the slow fibers and the force from the
 % fast fibers
-% Equations for individual component of force is
-% F_n = a(t) * F_a(l) * F_v(v)
-% TODO: EITEHR ALLOW FOR DEFINING PARAMETERS HERE OR SEPARATE F_a and F_v
-% INTO SEPARATE FUNCTIONS FOR SLOW AND FAST ELEMENTS
-function F_f = Two_Element(a, l, v)
-    % Expects a as vector of activation levels [a_slow(t), a_fast(t)],
-    % l as current fascicle length, and v as current fiber velocity
-    F_f = (a(1) * force_length(l) * force_velocity(v)) + (a(2) * force_length(l) * force_velocity(v));
-end
+function F_f =
 
 % Transfer functions
 % a1_dot + ((1/tau_act1)*(beta1 + (1-beta1)*EMG(t-t_off))) * a1(t) = (1/tau_act1) * EMG(t-t_off)
@@ -64,6 +56,7 @@ function F_v = force_velocity(v, v_0, k)
     % Returns force-velocity relationship F_v as scalar F_v-hat
     % Expects v as v(t), v_0 as maximum unloaded shortening velocity,
     % and k as force-velocity curvature
+    F_v = 0;
     if v <= 0 
         F_v = (1 - (v/v_0)) / (1 + (v/(v_0*k)));
     else
