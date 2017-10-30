@@ -1,10 +1,10 @@
-function [S, S_dot]= Sag_fcn(Fs, f_eff, S_init)
+function [S]= Sag_fcn(Fs, f_eff, S_init)
 %sag fast
 a_s1=1.76;
 a_s2=0.96;
 Ts= 43; %ms
 
-if f_eff <0/1
+if f_eff <0.1
     a_s=a_s1;
 else
     a_s=a_s2;

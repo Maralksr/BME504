@@ -8,5 +8,5 @@
         cv0 = -5.7;
         cv1 = 9.18;
         
-        FV_con = (V-Vmax)/(Vmax + (cv0 + cv1*L)*V);
+        FV_con = (Vmax-V)/(Vmax + (cv0 + cv1*L)*V);
     end

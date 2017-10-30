@@ -1,4 +1,4 @@
-function FL = FL_Slow(L)
+function FL = FL_slow(L)
         %---------------------------
         % force length (F-L) relationship for slow-tiwtch fiber
         % input: normalized muscle length
