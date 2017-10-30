@@ -9,5 +9,5 @@
         av1 = 0;
         av2 = 0;
         bv = 0.69;
-        FV_ecc = (bv - (av0 + av1*L + av2*L^2)*V)/(bv+V);
+        FV_ecc = -(bv - (av0 + av1*L + av2*L^2)*V)/(bv+V);
     end
