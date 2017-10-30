@@ -14,26 +14,30 @@
 % F_n = a(t) * F_a(l) * F_v(v)
 % TODO: EITEHR ALLOW FOR DEFINING PARAMETERS HERE OR SEPARATE F_a and F_v
 % INTO SEPARATE FUNCTIONS FOR SLOW AND FAST ELEMENTS
-function F_f = Two_Element(a, l, v)
+function F_f = Two_Element(a, tau_act, b, EMG, l, v)
     % Expects a as vector of activation levels [a_slow(t), a_fast(t)],
     % l as current fascicle length, and v as current fiber velocity
-    F_f = (a(1) * force_length(l) * force_velocity(v)) + (a(2) * force_length(l) * force_velocity(v));
+    [~, a_slow, a_fast] = activation_transfer(a, tau_act, b, EMG);
+    F_f = (a_slow * force_length(l) * force_velocity(v)) + (a_fast * force_length(l) * force_velocity(v));
 end
 
 % Transfer functions
 % a1_dot + ((1/tau_act1)*(beta1 + (1-beta1)*EMG(t-t_off))) * a1(t) = (1/tau_act1) * EMG(t-t_off)
 % a2_dot + ((1/tau_act2)*(beta2 + (1-beta2)*a1(t))) * a2(t) = (1/tau_act2) * a1(t)
 % a3_dot + ((1/tau_act3)*(beta3 + (1-beta3)*a3(t))) * a3(t) = (1/tau_act3) * a2(t)
-function a_dot = activation_transfer(tau_act, beta, EMG, a)
+function a_dot = activation_transfer(a, tau_act, b, EMG)
     % Returns a_dot as vector [a1_dot, a2_dot, a3_dot]
+    % where a1_dot is transfer function of the whole muscle, a2_dot is the
+    % transfer function of slow fibers, and a3_dot is the transfer function
+    % of the fast fibers.
     % Expects tau_act as vector [tau_act1, tau_act2, tau_act3],
-    % beta as vector [beta1, beta2, beta3],
+    % b represents beta as vector [beta1, beta2, beta3],
     % EMG as scalar value EMG(t-t_off),
     % and a as vector (a1(t), a2(t), a3(t)]
     a_dot = zeros(1, 3);
-    a_dot(1) = (1/tau_act(1))*EMG - ((1/tau_act(1))*(beta(1)+(1-beta(1))*EMG))*a(1);
-    a_dot(2) = (1/tau_act(2))*a(1) - ((1/tau_act(2))*(beta(2)+(1-beta(2))*a(2)))*a(2);
-    a_dot(3) = (1/tau_act(3))*a(2) - ((1/tau_act(3))*(beta(3)+(1-beta(3))*a(3)))*a(3);
+    a_dot(1) = (1/tau_act(1))*EMG - ((1/tau_act(1))*(b(1)+(1-b(1))*EMG))*a(1);
+    a_dot(2) = (1/tau_act(2))*a(1) - ((1/tau_act(2))*(b(2)+(1-b(2))*a(2)))*a(2);
+    a_dot(3) = (1/tau_act(3))*a(2) - ((1/tau_act(3))*(b(3)+(1-b(3))*a(3)))*a(3);
 end
 
 % Total muscle force
