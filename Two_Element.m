@@ -30,7 +30,7 @@ activ_slow = zeros(1, length(activ_));
 activ_fast = zeros(1, length(activ_));
 for i = 2 : length(activ_)
     %populate slow and fast fiber activations
-    %all activations start at zero, then use 
+    %all activations start at zero, then use a_dot values to proceed
     [a_slow_dot, a_fast_dot] = activation_transfer([activ_(i-1), activ_slow(i-1), activ_fast(i-1)], tau_act_, b_);
     activ_slow(i) = activ_slow(i-1) + a_slow_dot;
     activ_fast(i) = activ_fast(i-1) + a_fast_dot;
