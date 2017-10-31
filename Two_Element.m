@@ -45,17 +45,17 @@ active_component_force = total_active_force(activ_slow, activ_fast, l_, v_);
 % fast fibers
 % Equations for individual component of force is
 % F_n = a(t) * F_a(l) * F_v(v)
-function F_f = total_active_force(a_slow, a_fast, l, v)
+function F_f = total_active_force(a_slow, a_fast, l, v, v_0, k)
     % Expects a as vector of activation levels [a_slow(t), a_fast(t)],
-    % l as current fascicle length, and v as current fiber velocity
-    %[~, a_slow, a_fast] = activation_transfer(a, tau_act, b, EMG);
-    %F_f = (a_slow * force_length(l) * force_velocity(v)) + (a_fast * force_length(l) * force_velocity(v));
+    % l as current fascicle length, and v as current fiber velocity,
+    % v_0 as vector [v_0_slow, v_0_fast], and k as vector [k_slow, k_fast]
     a_slow_length = length(a_slow);
     a_fast_length = length(a_fast);
     assert((a_slow_length == a_fast_length), 'total_active_force: a_slow and a_fast must have same length');
     F_f = zeros(1, a_slow_length);
     for i = 1 : a_slow_length
-        F_f(i) = (a_slow * force_length(l) * force_velocity(v)) + (a_fast * force_length(l) * force_velocity(v));
+        F_f(i) = (a_slow * force_length_active(l) * force_velocity(v, v_0(1), k(1))) + ...
+            (a_fast * force_length_active(l) * force_velocity(v, v_0(2), k(2)));
     end
 end
 
@@ -88,16 +88,17 @@ end
 
 % Force-length relationship (F_a-hat(l) and F_p-hat(l) in paper)
 % F_a(l) = (-878.24*(l * 1.253)^2 + 2200.4*(l * 1.254) - 1192) / 186.24
-% F_p(l) = exp(-1.3 + 3.8*(l * 1.253)) / 186.24
 function F_active = force_length_active(l)
-    % Returns force-length relationship F_l as vector [F_a-hat(l), F_p-hat(l)]
-    % where F_a-hat corresponds to active element, F_p-hat corresponds to
-    % passive element
+    % Returns force-length relationship F_l of active component
     % l is fascicle length
     F_active = (-878.25*(l*1.253)^2 + 2200.4*(l*1.254) - 1192) / 186.24;
 end
 
+% Force-length relationship (F_p-hat(l) in paper)
+% F_p(l) = exp(-1.3 + 3.8*(l * 1.253)) / 186.24
 function F_passive = force_length_passive(l)
+    % Returns force-length relationship F_l of passive component
+    % l is fascicle length
     F_passive = exp(-1.3 + 3.8*(l*1.253)) / 186.24;
 end
 
