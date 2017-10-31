@@ -50,6 +50,14 @@ end
 % of slow-twitch fiber (f_half)
 fint_dot = (f_env - f_int)/T_f;
 f_int = fint_dot*1/Fs + f_int;
+
+if f_int <0
+    f_int=0;
+end
+if f_env<0
+    f_env=0;
+end
+
 % effective firing frequency of slow-twitch fiber (f_half)
 f_eff_dot = (f_int - f_eff)/T_f;
 f_eff = f_eff_dot*1/Fs + f_eff;

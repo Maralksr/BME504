@@ -8,22 +8,17 @@ fint_dot = 0;
 
 
 
-Fs=1000;
+Fs=10000;
 %for Activation
-T1 = 20/1000;    %time 'on'
-T2 = 14/1000;    %time 'off'
-n = 4;      %number of cycles
+T1 = 20;    %time 'on'
+T2 = 14;    %time 'off'
+n = 1;      %number of cycles
 %Activation Equation
 A = @(t) ((t/(T1+T2) - floor(t/(T1+T2))) < T1/(T1+T2));
 
 
 tspan1 = [0 n*(T1+T2)];
 t=0:1/Fs:n*(T1+T2);
-
-ct=27.8;
-kt=0.0047;
-Ltr=0.964;
-Lmt=24.1+6.8;
 
 %%
 
@@ -165,24 +160,16 @@ F_muscle = Fce(1) + FPE1+ FPE1_f;
 
 
 %tendon force
+Lse(i)=2-L(i);
+F_t(i)=Fse(Lse(i));
+
 
 F_m(i)=F_muscle;
 
+MT_force(i)=F_m(i)+ F_t(i);
 
 
-Lse(i+1)=F_m(i)/ct+Ltr;
-L(i+1)=Lmt-Lse(i+1);
-
-
-F_t(i+1)=Fse(Lse(i+1));
-
-
-
-
-
-
-
-i
+i;
 end
 
 %%
