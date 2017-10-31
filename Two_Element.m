@@ -1,6 +1,6 @@
 % Alex Czaja
 % Dr. Valero-Cevas, BME504 Neuromuscular Systems
-% Implementation of two-element, or differential, Hill-type model
+% Implementation of two-fiber type Hill-type model
 
 % Equations of two-element Hill-type model
 % According to "Accuracy of gastrocnemius muscles forces in walking and
@@ -14,9 +14,13 @@ b_ = [0.73, 9.90];          % [beta_slow, beta_fast]
 tau_act_ = [34.06, 18.14];  % [tau_act_slow, tau_act_fast]
 theta_ = 0;                 % pennation angle, assuming 0;
 c_ = 1;                     % for calculating total muscle force from active and passive elements
+l_ = 15.9;                  % optimal fascicle length [mm] lateral gastrocnemius from above paper
+v_0_ = 2.74;                % maximum shortening velocity from above paper
+k_ = 0.29;                  % force-velocity curvature from above paper
+
 
 % Define activation functions for evaluating fitness
-activ_ = [0 : .01 : 1];     % activation ramp of muscle activation from which to get slow and fast fiber activations
+activ_ = 0 : .001 : 1;     % activation ramp of muscle activation from which to get slow and fast fiber activations
 
 
 % Running model
@@ -32,6 +36,8 @@ for i = 2 : length(activ_)
     activ_fast(i) = activ_fast(i-1) + a_fast_dot;
 end
 
+% Calculate total muscle force generated over activation function
+active_component_force = total_active_force(activ_slow, activ_fast, l_, v_);
 
 
 % Active component of muscle force determined by this two-element model
@@ -39,18 +45,25 @@ end
 % fast fibers
 % Equations for individual component of force is
 % F_n = a(t) * F_a(l) * F_v(v)
-function F_f = Two_Element(a, tau_act, b, EMG, l, v)
+function F_f = total_active_force(a_slow, a_fast, l, v)
     % Expects a as vector of activation levels [a_slow(t), a_fast(t)],
     % l as current fascicle length, and v as current fiber velocity
-    [~, a_slow, a_fast] = activation_transfer(a, tau_act, b, EMG);
-    F_f = (a_slow * force_length(l) * force_velocity(v)) + (a_fast * force_length(l) * force_velocity(v));
+    %[~, a_slow, a_fast] = activation_transfer(a, tau_act, b, EMG);
+    %F_f = (a_slow * force_length(l) * force_velocity(v)) + (a_fast * force_length(l) * force_velocity(v));
+    a_slow_length = length(a_slow);
+    a_fast_length = length(a_fast);
+    assert((a_slow_length == a_fast_length), 'total_active_force: a_slow and a_fast must have same length');
+    F_f = zeros(1, a_slow_length);
+    for i = 1 : a_slow_length
+        F_f(i) = (a_slow * force_length(l) * force_velocity(v)) + (a_fast * force_length(l) * force_velocity(v));
+    end
 end
 
 % Transfer functions
 % a1_dot + ((1/tau_act1)*(beta1 + (1-beta1)*EMG(t-t_off))) * a1(t) = (1/tau_act1) * EMG(t-t_off)
 % a2_dot + ((1/tau_act2)*(beta2 + (1-beta2)*a1(t))) * a2(t) = (1/tau_act2) * a1(t)
 % a3_dot + ((1/tau_act3)*(beta3 + (1-beta3)*a3(t))) * a3(t) = (1/tau_act3) * a2(t)
-function a_dot = activation_transfer(activ, tau_act, b)
+function [a_dot_slow, a_dot_fast] = activation_transfer(activ, tau_act, b)
     % Returns a_dot as vector [a1_dot, a2_dot, a3_dot]
     % where a1_dot is transfer function of the whole muscle, a2_dot is the
     % transfer function of slow fibers, and a3_dot is the transfer function
@@ -61,9 +74,9 @@ function a_dot = activation_transfer(activ, tau_act, b)
     % and a as vector (a1(t), a2(t), a3(t)]
     %a_dot = zeros(1, 3);
     %a_dot(1) = (1/tau_act(1))*EMG - ((1/tau_act(1))*(b(1)+(1-b(1))*EMG))*a(1);
-    a_dot = zeros(1, 2);
-    a_dot(1) = (1/tau_act(1))*activ(v) - ((1/tau_act(1))*(b(1)+(1-b(1))*activ(2)))*activ(2);
-    a_dot(2) = (1/tau_act(3))*activ(2) - ((1/tau_act(3))*(b(3)+(1-b(3))*activ(3)))*activ(3);
+    %a_dot = zeros(1, 2);
+    a_dot_slow = (1/tau_act(1))*activ(1) - ((1/tau_act(1))*(b(1)+(1-b(1))*activ(2)))*activ(2);
+    a_dot_fast = (1/tau_act(2))*activ(2) - ((1/tau_act(2))*(b(3)+(1-b(3))*activ(3)))*activ(3);
 end
 
 % Total muscle force
@@ -76,14 +89,13 @@ end
 % Force-length relationship (F_a-hat(l) and F_p-hat(l) in paper)
 % F_a(l) = (-878.24*(l * 1.253)^2 + 2200.4*(l * 1.254) - 1192) / 186.24
 % F_p(l) = exp(-1.3 + 3.8*(l * 1.253)) / 186.24
-function F_l = force_length(l)
+function [F_active, F_passive] = force_length(l)
     % Returns force-length relationship F_l as vector [F_a-hat(l), F_p-hat(l)]
     % where F_a-hat corresponds to active element, F_p-hat corresponds to
     % passive element
     % l is fascicle length
-    F_l = zeros(1, 2);
-    F_l(1) = (-878.25*(l*1.253)^2 + 2200.4*(l*1.254) - 1192) / 186.24;
-    F_l(2) = exp(-1.3 + 3.8*(l*1.253)) / 186.24;
+    F_active = (-878.25*(l*1.253)^2 + 2200.4*(l*1.254) - 1192) / 186.24;
+    F_passive = exp(-1.3 + 3.8*(l*1.253)) / 186.24;
 end
 
 
@@ -98,5 +110,19 @@ function F_v = force_velocity(v, v_0, k)
         F_v = (1 - (v/v_0)) / (1 + (v/(v_0*k)));
     else
         F_v = 1.5 - 0.5 * ((1 + (v/v_0)) / (1 - ((7.56*v)/(v_0*k))));
+    end
+end
+
+% Force from velocity calculated by inverting force-velocity relationship
+% above for the purpose of determine new length
+% Requires knowledge of concentric or eccentric muscle activity because
+% negative velocity corresponds to concentric or shortening movement
+function v = velocity_from_force(F, v_0, k, direction)
+    assert((direction == 'concentric' || direction == 'eccentric'), ...
+        'velocity_from_force: must pass direction as eccentric or concentric');
+    if direction == 'concentric'
+        v = ((1 - F) * (v_0 * k)) / (k - F);
+    else
+        v = (2 - 2 * F) / ((1/v_0) + ((3*7.56)/(v_0*k)) - ((2*7.56*F)/(v_0*k)));
     end
 end
