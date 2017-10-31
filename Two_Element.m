@@ -49,14 +49,8 @@ function F_f = total_active_force(a_slow, a_fast, l, v, v_0, k)
     % Expects a as vector of activation levels [a_slow(t), a_fast(t)],
     % l as current fascicle length, and v as current fiber velocity,
     % v_0 as vector [v_0_slow, v_0_fast], and k as vector [k_slow, k_fast]
-    a_slow_length = length(a_slow);
-    a_fast_length = length(a_fast);
-    assert((a_slow_length == a_fast_length), 'total_active_force: a_slow and a_fast must have same length');
-    F_f = zeros(1, a_slow_length);
-    for i = 1 : a_slow_length
-        F_f(i) = (a_slow * force_length_active(l) * force_velocity(v, v_0(1), k(1))) + ...
-            (a_fast * force_length_active(l) * force_velocity(v, v_0(2), k(2)));
-    end
+    F_f = (a_slow * force_length_active(l) * force_velocity(v, v_0(1), k(1))) + ...
+        (a_fast * force_length_active(l) * force_velocity(v, v_0(2), k(2)));
 end
 
 % Transfer functions
