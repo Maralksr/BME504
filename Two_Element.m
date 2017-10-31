@@ -7,13 +7,38 @@
 % running goats predicted by one-element and two-element Hill-type models"
 % by Sabrina S.M. Lee et. al. published in Journal of Biomechanics
 
-% Total muscle force determined by this two-element model
+% Constants borrowed from Ali's code and from above paper
+% Making _ be suffix of global variables to be replaced later for Monte
+% Carlo simulations
+b_ = [0.73, 9.90];          % [beta_slow, beta_fast]
+tau_act_ = [34.06, 18.14];  % [tau_act_slow, tau_act_fast]
+theta_ = 0;                 % pennation angle, assuming 0;
+c_ = 1;                     % for calculating total muscle force from active and passive elements
+
+% Define activation functions for evaluating fitness
+activ_ = [0 : .01 : 1];     % activation ramp of muscle activation from which to get slow and fast fiber activations
+
+
+% Running model
+% Get activations of fibers over ramp activation of muscle
+activ_step = activ_(2) - activ_(1);
+activ_slow = zeros(1, length(activ_));
+activ_fast = zeros(1, length(activ_));
+for i = 2 : length(activ_)
+    %populate slow and fast fiber activations
+    %all activations start at zero, then use 
+    [a_slow_dot, a_fast_dot] = activation_transfer([activ_(i-1), activ_slow(i-1), activ_fast(i-1)], tau_act_, b_);
+    activ_slow(i) = activ_slow(i-1) + a_slow_dot;
+    activ_fast(i) = activ_fast(i-1) + a_fast_dot;
+end
+
+
+
+% Active component of muscle force determined by this two-element model
 % Force is the sum of the force from the slow fibers and the force from the
 % fast fibers
 % Equations for individual component of force is
 % F_n = a(t) * F_a(l) * F_v(v)
-% TODO: EITEHR ALLOW FOR DEFINING PARAMETERS HERE OR SEPARATE F_a and F_v
-% INTO SEPARATE FUNCTIONS FOR SLOW AND FAST ELEMENTS
 function F_f = Two_Element(a, tau_act, b, EMG, l, v)
     % Expects a as vector of activation levels [a_slow(t), a_fast(t)],
     % l as current fascicle length, and v as current fiber velocity
@@ -25,7 +50,7 @@ end
 % a1_dot + ((1/tau_act1)*(beta1 + (1-beta1)*EMG(t-t_off))) * a1(t) = (1/tau_act1) * EMG(t-t_off)
 % a2_dot + ((1/tau_act2)*(beta2 + (1-beta2)*a1(t))) * a2(t) = (1/tau_act2) * a1(t)
 % a3_dot + ((1/tau_act3)*(beta3 + (1-beta3)*a3(t))) * a3(t) = (1/tau_act3) * a2(t)
-function a_dot = activation_transfer(a, tau_act, b, EMG)
+function a_dot = activation_transfer(activ, tau_act, b)
     % Returns a_dot as vector [a1_dot, a2_dot, a3_dot]
     % where a1_dot is transfer function of the whole muscle, a2_dot is the
     % transfer function of slow fibers, and a3_dot is the transfer function
@@ -34,10 +59,11 @@ function a_dot = activation_transfer(a, tau_act, b, EMG)
     % b represents beta as vector [beta1, beta2, beta3],
     % EMG as scalar value EMG(t-t_off),
     % and a as vector (a1(t), a2(t), a3(t)]
-    a_dot = zeros(1, 3);
-    a_dot(1) = (1/tau_act(1))*EMG - ((1/tau_act(1))*(b(1)+(1-b(1))*EMG))*a(1);
-    a_dot(2) = (1/tau_act(2))*a(1) - ((1/tau_act(2))*(b(2)+(1-b(2))*a(2)))*a(2);
-    a_dot(3) = (1/tau_act(3))*a(2) - ((1/tau_act(3))*(b(3)+(1-b(3))*a(3)))*a(3);
+    %a_dot = zeros(1, 3);
+    %a_dot(1) = (1/tau_act(1))*EMG - ((1/tau_act(1))*(b(1)+(1-b(1))*EMG))*a(1);
+    a_dot = zeros(1, 2);
+    a_dot(1) = (1/tau_act(1))*activ(v) - ((1/tau_act(1))*(b(1)+(1-b(1))*activ(2)))*activ(2);
+    a_dot(2) = (1/tau_act(3))*activ(2) - ((1/tau_act(3))*(b(3)+(1-b(3))*activ(3)))*activ(3);
 end
 
 % Total muscle force
