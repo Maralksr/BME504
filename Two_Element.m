@@ -117,6 +117,8 @@ end
 % above for the purpose of determine new length
 % Requires knowledge of concentric or eccentric muscle activity because
 % negative velocity corresponds to concentric or shortening movement
+% Assumes force applied is totally due to active component and that passive
+% component is inelastic during movement
 function v = velocity_from_force(F, v_0, k, direction)
     assert((direction == 'concentric' || direction == 'eccentric'), ...
         'velocity_from_force: must pass direction as eccentric or concentric');
