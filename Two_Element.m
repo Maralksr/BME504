@@ -89,15 +89,17 @@ end
 % Force-length relationship (F_a-hat(l) and F_p-hat(l) in paper)
 % F_a(l) = (-878.24*(l * 1.253)^2 + 2200.4*(l * 1.254) - 1192) / 186.24
 % F_p(l) = exp(-1.3 + 3.8*(l * 1.253)) / 186.24
-function [F_active, F_passive] = force_length(l)
+function F_active = force_length_active(l)
     % Returns force-length relationship F_l as vector [F_a-hat(l), F_p-hat(l)]
     % where F_a-hat corresponds to active element, F_p-hat corresponds to
     % passive element
     % l is fascicle length
     F_active = (-878.25*(l*1.253)^2 + 2200.4*(l*1.254) - 1192) / 186.24;
-    F_passive = exp(-1.3 + 3.8*(l*1.253)) / 186.24;
 end
 
+function F_passive = force_length_passive(l)
+    F_passive = exp(-1.3 + 3.8*(l*1.253)) / 186.24;
+end
 
 % Force-velocity relationship (F_v-hat(v) in paper)
 % F_v(v) = { (1 - (v/v_0)) / (1 + (v/(v_0*k)))                  if v <= 0
@@ -117,8 +119,6 @@ end
 % above for the purpose of determine new length
 % Requires knowledge of concentric or eccentric muscle activity because
 % negative velocity corresponds to concentric or shortening movement
-% Assumes force applied is totally due to active component and that passive
-% component is inelastic during movement
 function v = velocity_from_force(F, v_0, k, direction)
     assert((direction == 'concentric' || direction == 'eccentric'), ...
         'velocity_from_force: must pass direction as eccentric or concentric');
