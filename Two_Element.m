@@ -37,7 +37,6 @@ for i = 2 : length(activ_)
 end
 
 % Calculate total muscle force generated over activation function
-active_component_force = total_active_force(activ_slow, activ_fast, l_, v_);
 
 
 % Total muscle force
@@ -126,5 +125,17 @@ function v = velocity_from_force(F, v_0, k, direction)
         v = ((1 - F) * (v_0 * k)) / (k - F);
     else
         v = (2 - 2 * F) / ((1/v_0) + ((3*7.56)/(v_0*k)) - ((2*7.56*F)/(v_0*k)));
+    end
+end
+
+% Prototype sigmoid function to use in place of fuzzy logic toolbox's
+% figmf(x, [a, c]) function
+% Current problem: only displays sigmoidal growth between 0 and 1
+function y = sigmoid(x, p)
+    y = zeros(numel(x));
+    a = p(1);
+    c = p(2);
+    parfor i = 1 : numel(y)
+        y(i) = 1 / (1 + exp(-a*(x(i) - c)));
     end
 end
