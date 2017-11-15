@@ -20,7 +20,7 @@ k_ = 0.29;                  % force-velocity curvature from above paper
 
 
 % Define activation functions for evaluating fitness
-activ_ = 0 : .001 : 1;     % activation ramp of muscle activation from which to get slow and fast fiber activations
+activ_ = 0 : .0001 : 1;     % activation ramp of muscle activation from which to get slow and fast fiber activations
 
 
 % Running model
@@ -130,12 +130,13 @@ end
 
 % Prototype sigmoid function to use in place of fuzzy logic toolbox's
 % figmf(x, [a, c]) function
-% Current problem: only displays sigmoidal growth between 0 and 1
+% For use later to simulate fast increase in activation level
 function y = sigmoid(x, p)
-    y = zeros(numel(x));
+    len = length(x);
+    y = zeros(1, len);
     a = p(1);
     c = p(2);
-    parfor i = 1 : numel(y)
-        y(i) = 1 / (1 + exp(-a*(x(i) - c)));
+    parfor i = 1 : len
+        y(i) = 1 / (1 + exp(-a * (x(i)-c)));
     end
 end
