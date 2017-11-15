@@ -15,11 +15,13 @@ b_ = [0.73, 9.90];          % [beta_slow, beta_fast]
 tau_act_ = [34.06, 18.14];  % [tau_act_slow, tau_act_fast]
 theta_ = 0;                 % pennation angle
 c_ = 1;                     % for calculating total muscle force from active and passive elements
+                            % consider renaming to fatigue factor becuase c
+                            % should conceptually be 0 <= c <= 1
 l_ = 15.9;                  % optimal fascicle length [mm] lateral gastrocnemius from above paper
 v_0_ = 2.74;                % maximum shortening velocity from above paper
 k_ = 0.29;                  % force-velocity curvature from above paper
 
-%%Running model
+%% Running model
 % Define activation functions for evaluating fitness
 activ_ = 0 : .0001 : 1;     % activation ramp of muscle activation from which to get slow and fast fiber activations
 
