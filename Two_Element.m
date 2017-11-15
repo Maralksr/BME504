@@ -13,7 +13,7 @@
 % Carlo simulations
 b_ = [0.73, 9.90];          % [beta_slow, beta_fast]
 tau_act_ = [34.06, 18.14];  % [tau_act_slow, tau_act_fast]
-theta_ = 0;                 % pennation angle, assuming 0;
+theta_ = 0;                 % pennation angle
 c_ = 1;                     % for calculating total muscle force from active and passive elements
 l_ = 15.9;                  % optimal fascicle length [mm] lateral gastrocnemius from above paper
 v_0_ = 2.74;                % maximum shortening velocity from above paper
@@ -29,7 +29,8 @@ activ_slow = zeros(1, length(activ_));
 activ_fast = zeros(1, length(activ_));
 for i = 2 : length(activ_)
     %populate slow and fast fiber activations
-    %all activations start at zero, then use a_dot values to proceed
+    %all activations start at zero, then use a_dot values to proceed to
+    %populate a(t) for fiber types
     [a_slow_dot, a_fast_dot] = activation_transfer([activ_(i-1), activ_slow(i-1), activ_fast(i-1)], tau_act_, b_);
     activ_slow(i) = activ_slow(i-1) + a_slow_dot;
     activ_fast(i) = activ_fast(i-1) + a_fast_dot;
@@ -73,7 +74,7 @@ end
 % a1_dot + ((1/tau_act1)*(beta1 + (1-beta1)*EMG(t-t_off))) * a1(t) = (1/tau_act1) * EMG(t-t_off)
 % a2_dot + ((1/tau_act2)*(beta2 + (1-beta2)*a1(t))) * a2(t) = (1/tau_act2) * a1(t)
 % a3_dot + ((1/tau_act3)*(beta3 + (1-beta3)*a3(t))) * a3(t) = (1/tau_act3) * a2(t)
-function [a_dot_slow, a_dot_fast] = activation_transfer(activ, tau, b)
+function [a_dot_slow, a_dot_fast] = activation_transfer(a, tau, b)
     % Returns a_dot as vector [a2_dot, a3_dot]
     % where a1_dot is transfer function of the whole muscle, a2_dot is the
     % transfer function of slow fibers, and a3_dot is the transfer function
@@ -82,8 +83,10 @@ function [a_dot_slow, a_dot_fast] = activation_transfer(activ, tau, b)
     % b represents beta as vector [beta_slow, beta_fast],
     % and a as vector (a_whole(t), a_slow(t), a_fast(t)]
     %a_dot(1) = (1/tau_act(1))*EMG - ((1/tau_act(1))*(b(1)+(1-b(1))*EMG))*a(1);
-    a_dot_slow = (1/tau(1))*activ(1) - ((1/tau(1))*(b(1)+(1-b(1))*activ(1)))*activ(2);
-    a_dot_fast = (1/tau(2))*activ(2) - ((1/tau(2))*(b(2)+(1-b(2))*activ(2)))*activ(3);
+    %not including a_dot of whole muscle in order to use arbitrary
+    %activation pattern for testing
+    a_dot_slow = (1/tau(1))*a(1) - ((1/tau(1))*(b(1)+(1-b(1))*a(1)))*a(2);
+    a_dot_fast = (1/tau(2))*a(2) - ((1/tau(2))*(b(2)+(1-b(2))*a(2)))*a(3);
 end
 
 % Force-length relationship (F_a-hat(l) and F_p-hat(l) in paper)
