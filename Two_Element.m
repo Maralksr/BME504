@@ -1,4 +1,4 @@
-% Alex Czaja
+%% Alex Czaja
 % Dr. Valero-Cevas, BME504 Neuromuscular Systems
 % Implementation of two-fiber type Hill-type model
 
@@ -7,6 +7,7 @@
 % running goats predicted by one-element and two-element Hill-type models"
 % by Sabrina S.M. Lee et. al. published in Journal of Biomechanics
 
+%% Global/Initial Parameters
 % Constants borrowed from Ali's code and from above paper
 % Making _ be suffix of global variables to be replaced later for Monte
 % Carlo simulations
@@ -18,12 +19,10 @@ l_ = 15.9;                  % optimal fascicle length [mm] lateral gastrocnemius
 v_0_ = 2.74;                % maximum shortening velocity from above paper
 k_ = 0.29;                  % force-velocity curvature from above paper
 
-
+%%Running model
 % Define activation functions for evaluating fitness
 activ_ = 0 : .0001 : 1;     % activation ramp of muscle activation from which to get slow and fast fiber activations
 
-
-% Running model
 % Get activations of fibers over ramp activation of muscle
 activ_step = activ_(2) - activ_(1);
 activ_slow = zeros(1, length(activ_));
@@ -39,6 +38,11 @@ end
 % Calculate total muscle force generated over activation function
 
 
+%% Monte Carlo
+
+
+
+%% Model Functions
 % Total muscle force
 % Fm = c(F_f + F_p(l)) * cos(theta)
 % Where F_f (F_f-hat in paper) is active component of the muscle fiber force,
@@ -51,7 +55,6 @@ function F_m = total_muscle_force(a_slow, a_fast, l, v_0, k, c, theta, F_applied
     F_p = total_passive_force(l);
     F_m = c * (F_f + F_p) * cos(theta);
 end
-
 
 % Active component of muscle force determined by this two-element model
 % Force is the sum of the force from the slow fibers and the force from the
@@ -127,6 +130,8 @@ function v = velocity_from_force(F, v_0, k, direction)
         v = (2 - 2 * F) / ((1/v_0) + ((3*7.56)/(v_0*k)) - ((2*7.56*F)/(v_0*k)));
     end
 end
+
+%% Helper Functions
 
 % Prototype sigmoid function to use in place of fuzzy logic toolbox's
 % figmf(x, [a, c]) function
