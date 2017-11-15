@@ -73,18 +73,17 @@ end
 % a1_dot + ((1/tau_act1)*(beta1 + (1-beta1)*EMG(t-t_off))) * a1(t) = (1/tau_act1) * EMG(t-t_off)
 % a2_dot + ((1/tau_act2)*(beta2 + (1-beta2)*a1(t))) * a2(t) = (1/tau_act2) * a1(t)
 % a3_dot + ((1/tau_act3)*(beta3 + (1-beta3)*a3(t))) * a3(t) = (1/tau_act3) * a2(t)
-function [a_dot_slow, a_dot_fast] = activation_transfer(activ, tau_act, b)
-    % Returns a_dot as vector [a1_dot, a2_dot, a3_dot]
+function [a_dot_slow, a_dot_fast] = activation_transfer(activ, tau, b)
+    % Returns a_dot as vector [a2_dot, a3_dot]
     % where a1_dot is transfer function of the whole muscle, a2_dot is the
     % transfer function of slow fibers, and a3_dot is the transfer function
     % of the fast fibers.
-    % Expects tau_act as vector [tau_act1, tau_act2, tau_act3],
-    % b represents beta as vector [beta1, beta2, beta3],
-    % EMG as scalar value EMG(t-t_off),
-    % and a as vector (a1(t), a2(t), a3(t)]
+    % Expects tau_act as vector [tau_act_slow, tau_act_fast],
+    % b represents beta as vector [beta_slow, beta_fast],
+    % and a as vector (a_whole(t), a_slow(t), a_fast(t)]
     %a_dot(1) = (1/tau_act(1))*EMG - ((1/tau_act(1))*(b(1)+(1-b(1))*EMG))*a(1);
-    a_dot_slow = (1/tau_act(1))*activ(1) - ((1/tau_act(1))*(b(1)+(1-b(1))*activ(2)))*activ(2);
-    a_dot_fast = (1/tau_act(2))*activ(2) - ((1/tau_act(2))*(b(3)+(1-b(3))*activ(3)))*activ(3);
+    a_dot_slow = (1/tau(1))*activ(1) - ((1/tau(1))*(b(1)+(1-b(1))*activ(1)))*activ(2);
+    a_dot_fast = (1/tau(2))*activ(2) - ((1/tau(2))*(b(2)+(1-b(2))*activ(2)))*activ(3);
 end
 
 % Force-length relationship (F_a-hat(l) and F_p-hat(l) in paper)
