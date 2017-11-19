@@ -77,7 +77,7 @@ MAX_ITER = 1000;
 function F_m = total_muscle_force(a_slow, a_fast, l, v_0, k, c, theta, F_applied, direction)
     v = velocity_from_force(F_applied, v_0, k, direction);
     F_f = total_active_force(a_slow, a_fast, l, v, v_0, k);
-    F_p = total_passive_force(l);
+    F_p = force_length_passive(l);
     F_m = c * (F_f + F_p) * cos(theta);
 end
 
