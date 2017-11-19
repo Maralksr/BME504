@@ -7,6 +7,9 @@
 % running goats predicted by one-element and two-element Hill-type models"
 % by Sabrina S.M. Lee et. al. published in Journal of Biomechanics
 
+close all;
+clear all;
+
 %% Global/Initial Parameters
 % Constants borrowed from Ali's code and from above paper
 % Making _ be suffix of global variables to be replaced later for Monte
@@ -19,11 +22,12 @@ c_ = 1;                     % for calculating total muscle force from active and
                             % should conceptually be 0 <= c <= 1
 l_ = 15.9;                  % optimal fascicle length [mm] lateral gastrocnemius from above paper
 v_0_ = 2.74;                % maximum shortening velocity from above paper
-k_ = 0.29;                  % force-velocity curvature from above paper
+k_ = [0.18, 0.29];          % [k_slow, k_fast] force-velocity curvature from above paper
 
 %% Running model
 % Define activation functions for evaluating fitness
-activ_ = 0 : .0001 : 1;     % activation ramp of muscle activation from which to get slow and fast fiber activations
+%activ_ = 0 : .0001 : 1;     % activation ramp of muscle activation from which to get slow and fast fiber activations
+activ_ = sigmoid([0 : .001 : 10], [2, 4]);
 
 % Get activations of fibers over ramp activation of muscle
 activ_step = activ_(2) - activ_(1);
@@ -39,13 +43,31 @@ for i = 2 : length(activ_)
 end
 
 % Calculate total muscle force generated over activation function
+force = zeros(1, length(activ_));
+for i = 1 : length(activ_)
+    force(i) = total_muscle_force(activ_slow(i), activ_fast(i), l_, v_0_, k_, c_, theta_, 0, 'isometric');
+end
 
 
 %% Monte Carlo
+% For two-element model, want to randomly model beta1, beta2, tau1, tau2,
+% k1, and k2
 
+% Initialize rng
+tstart = clock;
+seed = round(sum(1000*tstart));
+rand('state', seed);
+
+% Define maximum number of iterations
+MAX_ITER = 1000;
+
+% Preallocate matrices to store results
+
+% Perform Monte Carlo
 
 
 %% Model Functions
+
 % Total muscle force
 % Fm = c(F_f + F_p(l)) * cos(theta)
 % Where F_f (F_f-hat in paper) is active component of the muscle fiber force,
@@ -68,8 +90,8 @@ function F_f = total_active_force(a_slow, a_fast, l, v, v_0, k)
     % Expects a as vector of activation levels [a_slow(t), a_fast(t)],
     % l as current fascicle length, and v as current fiber velocity,
     % v_0 as vector [v_0_slow, v_0_fast], and k as vector [k_slow, k_fast]
-    F_f = (a_slow * force_length_active(l) * force_velocity(v, v_0(1), k(1))) + ...
-        (a_fast * force_length_active(l) * force_velocity(v, v_0(2), k(2)));
+    F_f = (a_slow * force_length_active(l) * force_velocity(v, v_0, k(1))) + ...
+        (a_fast * force_length_active(l) * force_velocity(v, v_0, k(2)));
 end
 
 % Transfer functions
@@ -126,12 +148,21 @@ end
 % Requires knowledge of concentric or eccentric muscle activity because
 % negative velocity corresponds to concentric or shortening movement
 function v = velocity_from_force(F, v_0, k, direction)
-    assert((direction == 'concentric' || direction == 'eccentric'), ...
+    % For isometric case, just pass F as 0 because direction should be
+    % passed as 'isometric' yielding desired output of velocity = 0 since
+    % muscle is not contracting or elongating
+    assert((strcmp(direction, 'concentric') || ...
+        strcmp(direction, 'eccentric') || ...
+        strcmp(direction, 'isometric')), ...
         'velocity_from_force: must pass direction as eccentric or concentric');
-    if direction == 'concentric'
-        v = ((1 - F) * (v_0 * k)) / (k - F);
+    % Using mean curvature of slow and fast fibers because not specified
+    % how to use them separately in the papers researched.
+    if strcmp(direction, 'concentric')
+        v = ((1 - F) * (v_0 * mean(k))) / (mean(k) - F);
+    elseif strcmp(direction, 'eccentric')
+        v = (2 - 2 * F) / ((1/v_0) + ((3*7.56)/(v_0*mean(k))) - ((2*7.56*F)/(v_0*mean(k))));
     else
-        v = (2 - 2 * F) / ((1/v_0) + ((3*7.56)/(v_0*k)) - ((2*7.56*F)/(v_0*k)));
+        v = 0;
     end
 end
 
@@ -145,7 +176,7 @@ function y = sigmoid(x, p)
     y = zeros(1, len);
     a = p(1);
     c = p(2);
-    parfor i = 1 : len
+    for i = 1 : len
         y(i) = 1 / (1 + exp(-a * (x(i)-c)));
     end
 end
