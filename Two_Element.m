@@ -14,20 +14,37 @@ clear all;
 % Constants borrowed from Ali's code and from above paper
 % Making _ be suffix of global variables to be replaced later for Monte
 % Carlo simulations
-b_ = [0.73, 9.90];          % [beta_slow, beta_fast]
-tau_act_ = [34.06, 18.14];  % [tau_act_slow, tau_act_fast]
-theta_ = 0;                 % pennation angle
-c_ = 1;                     % for calculating total muscle force from active and passive elements
-                            % consider renaming to fatigue factor becuase c
-                            % should conceptually be 0 <= c <= 1
-l_ = 15.9;                  % optimal fascicle length [mm] lateral gastrocnemius from above paper
-v_0_ = 2.74;                % maximum shortening velocity from above paper
-k_ = [0.18, 0.29];          % [k_slow, k_fast] force-velocity curvature from above paper
+
+% [beta_slow, beta_fast]
+b_ = [0.73, 9.90];
+
+% [tau_act_slow, tau_act_fast]
+tau_act_ = [34.06, 18.14];
+
+% pennation angle
+theta_ = 0;
+
+% for calculating total muscle force from active and passive elements
+% consider renaming to fatigue factor becuase c
+% should conceptually be 0 <= c <= 1
+c_ = 1;
+
+% optimal fascicle length lateral gastrocnemius from above paper
+% given in mm, converted to m
+l_ = 15.9e-3;
+
+% maximum shortening velocity from above paper
+v_0_ = 2.74;
+
+% [k_slow, k_fast] force-velocity curvature from above paper
+k_ = [0.18, 0.29];
 
 %% Running model
 % Define activation functions for evaluating fitness
+dt = 0.001;
+t = 0 : dt : 10;
+activ_ = sigmoid(t, [2, 4]);
 %activ_ = 0 : .0001 : 1;     % activation ramp of muscle activation from which to get slow and fast fiber activations
-activ_ = sigmoid([0 : .001 : 10], [2, 4]);
 
 % Get activations of fibers over ramp activation of muscle
 activ_step = activ_(2) - activ_(1);
@@ -48,6 +65,18 @@ for i = 1 : length(activ_)
     force(i) = total_muscle_force(activ_slow(i), activ_fast(i), l_, v_0_, k_, c_, theta_, 0, 'isometric');
 end
 
+% TEMP: plot a and force
+figure;
+plot(t, activ_, 'b');
+hold on;
+plot(t, activ_slow, 'g');
+hold on;
+plot(t, activ_fast, 'r');
+title('a');
+
+figure;
+plot(t, force);
+title('force');
 
 %% Monte Carlo
 % For two-element model, want to randomly model beta1, beta2, tau1, tau2,
@@ -176,7 +205,8 @@ function y = sigmoid(x, p)
     y = zeros(1, len);
     a = p(1);
     c = p(2);
-    for i = 1 : len
-        y(i) = 1 / (1 + exp(-a * (x(i)-c)));
-    end
+    y = 1 ./ (1 + exp(-a .* (x - c)));
+    %for i = 1 : len
+    %    y(i) = 1 / (1 + exp(-a * (x(i)-c)));
+    %end
 end
