@@ -148,6 +148,7 @@ which_iter = idx(1);
 % Include maximal force curve in subplot
 subplot(1, 2, 2);
 plot(t, MC_force(which_iter, :));
+title('Max Force');
 
 % Pull best parameter set and activation curve the produced maximum force
 best_params = MC_params{which_iter};
