@@ -89,11 +89,16 @@ rand('state', seed);
 % Define maximum number of iterations
 MAX_ITER = 1000;
 
-% Preallocate matrices to store results
-% Keep structs of params used for each iter
-% Keep vectors of force produced
+% Preallocate matrices to store results, keep structs of params used for
+% each iter, and keep vectors of force produced
+
+% M x N: M -> structs of params, N -> which iteration struct was made
 MC_params = cell(1, MAX_ITER);
+
+% M x N x P: M -> [a_slow, a_fast], N -> a(t), P -> which iteration
 MC_activ = zeros(2, length(t), MAX_ITER);
+
+% M x N: M -> which iteration, N -> force(t)
 MC_force = zeros(MAX_ITER, length(t));
 
 % Perform Monte Carlo
@@ -112,19 +117,17 @@ for i = 1 : MAX_ITER
     
     % Generate a_slow and a_fast using new params
     % Base a_slow and a_fast on same basic whole-muscle activation sigmoid
-    a_slow = zeros(1, length(activ_));
-    a_fast = zeros(1, length(activ_));
     for j = 2 : length(activ_)
         [a_slow_dot, a_fast_dot] = activation_transfer( ...
-            [activ_(j-1), a_slow(j-1), a_fast(j-1)], iter_params.tau, iter_params.b);
-        a_slow(j) = a_slow(j-1) + a_slow_dot;
-        a_fast(j) = a_fast(j-1) + a_fast_dot;
+            [activ_(j-1), MC_activ(1, j-1, i), MC_activ(2, j-1, i)], iter_params.tau, iter_params.b);
+        MC_activ(1, j, i) = MC_activ(1, j-1, i) + a_slow_dot;
+        MC_activ(j) = MC_activ(2, j-1, i) + a_fast_dot;
     end
     
-    % Generate force using these activation sets    
+    % Generate force using these activation sets
     for j = 1 : length(t)
         MC_force(i, j) = total_muscle_force( ...
-            a_slow(j), a_fast(j), l_opt_, l_opt_, v_0_, iter_params.k, c_, 0, theta_, 'isometric');
+            MC_activ(1, j, i), MC_activ(2, j, i), l_opt_, l_opt_, v_0_, iter_params.k, c_, 0, theta_, 'isometric');
     end
 end
 
