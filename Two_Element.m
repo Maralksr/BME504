@@ -78,7 +78,7 @@ plot(t, force);
 title('force');
 
 %% Monte Carlo
-% For two-element model, want to randomly model
+% For two-element model, want to stochastically model
 % beta1, beta2, tau1, tau2, k1, and k2
 
 % Initialize rng
@@ -87,7 +87,7 @@ seed = round(sum(1000*tstart));
 rand('state', seed);
 
 % Define maximum number of iterations
-MAX_ITER = 1000;
+MAX_ITER = 100;
 
 % Preallocate matrices to store results, keep structs of params used for
 % each iter, and keep vectors of force produced
@@ -130,6 +130,30 @@ for i = 1 : MAX_ITER
             MC_activ(1, j, i), MC_activ(2, j, i), l_opt_, l_opt_, v_0_, iter_params.k, c_, 0, theta_, 'isometric');
     end
 end
+
+% TEMP plot force production after MC modelling contained in MC_force
+figure;
+subplot(1, 2, 1);
+for i = 1 : MAX_ITER
+    hold on;
+    plot(t, MC_force(i, :));
+end
+title('MC force');
+
+% Find where the maximum force occurred after MC modelling
+% Recall form above that M dim of MC_force corresponds to iteration number
+[~, idx] = max(MC_force);
+which_iter = idx(1);
+
+% Include maximal force curve in subplot
+subplot(1, 2, 2);
+plot(t, MC_force(which_iter, :));
+
+% Pull best parameter set and activation curve the produced maximum force
+best_params = MC_params{which_iter};
+best_activ = MC_activ(:, :, which_iter);
+
+
 
 %% Model Functions
 
