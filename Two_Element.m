@@ -101,6 +101,10 @@ MC_activ = zeros(2, length(t), MAX_ITER);
 % M x N: M -> which iteration, N -> force(t)
 MC_force = zeros(MAX_ITER, length(t));
 
+%SANITY CHECKS
+MC_force_slow = zeros(1, length(t));
+MC_force_fast = zeros(1, length(t));
+
 % Perform Monte Carlo
 for i = 1 : MAX_ITER
     % Generate params and store in MC_params
@@ -117,18 +121,27 @@ for i = 1 : MAX_ITER
     
     % Generate a_slow and a_fast using new params
     % Base a_slow and a_fast on same basic whole-muscle activation sigmoid
-    for j = 2 : length(activ_)
+    for j = 2 : length(t)
         [a_slow_dot, a_fast_dot] = activation_transfer( ...
             [activ_(j-1), MC_activ(1, j-1, i), MC_activ(2, j-1, i)], iter_params.tau, iter_params.b);
         MC_activ(1, j, i) = MC_activ(1, j-1, i) + a_slow_dot;
-        MC_activ(j) = MC_activ(2, j-1, i) + a_fast_dot;
-    end
-    
-    % Generate force using these activation sets
-    for j = 1 : length(t)
+        MC_activ(2, j, i) = MC_activ(2, j-1, i) + a_fast_dot;
+        
+        % Generate force using these activation sets
         MC_force(i, j) = total_muscle_force( ...
             MC_activ(1, j, i), MC_activ(2, j, i), l_opt_, l_opt_, v_0_, iter_params.k, c_, 0, theta_, 'isometric');
+        
+        
+        % Populate sanity check
+        %MC_force_slow(j) = total_active_force_slow(MC_activ(1, j, i), 1, 0, v_0_, iter_params.k);
+        %MC_force_fast(j) = total_active_force_fast(MC_activ(2, j, i), 1, 0, v_0_, iter_params.k);
+       
     end
+    % Plot sanity check
+    %figure;
+    %plot(t, MC_force_slow);
+    %hold on;
+    %plot(t, MC_force_fast);
 end
 
 % TEMP plot force production after MC modelling contained in MC_force
@@ -184,6 +197,14 @@ function F_f = total_active_force(a_slow, a_fast, l, v, v_0, k)
     %disp(force_length_active(l));
     F_f = (a_slow * force_length_active(l) * force_velocity(v, v_0, k(1))) + ...
         (a_fast * force_length_active(l) * force_velocity(v, v_0, k(2)));
+end
+
+function F_f = total_active_force_slow(a_slow, l, v, v_0, k)
+    F_f = a_slow * force_length_active(l) * force_velocity(v, v_0, k(1));
+end
+
+function F_f = total_active_force_fast(a_fast, l, v, v_0, k)
+    F_f = a_fast * force_length_active(l) * force_velocity(v, v_0, k(2));
 end
 
 % Transfer functions
