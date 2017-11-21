@@ -52,8 +52,7 @@ activ_slow = zeros(1, length(activ_));
 activ_fast = zeros(1, length(activ_));
 for i = 2 : length(activ_)
     %populate slow and fast fiber activations
-    %all activations start at zero, then use a_dot values to proceed to
-    %populate a(t) for fiber types
+    %all activations start at zero, then use a_dot values to proceed to populate a(t) for fiber types
     [a_slow_dot, a_fast_dot] = activation_transfer([activ_(i-1), activ_slow(i-1), activ_fast(i-1)], tau_act_, b_);
     activ_slow(i) = activ_slow(i-1) + a_slow_dot;
     activ_fast(i) = activ_fast(i-1) + a_fast_dot;
@@ -88,30 +87,45 @@ seed = round(sum(1000*tstart));
 rand('state', seed);
 
 % Define maximum number of iterations
-MAX_ITER = 100;
+MAX_ITER = 1000;
 
 % Preallocate matrices to store results
 % Keep structs of params used for each iter
 % Keep vectors of force produced
-% Use same activation sigmoid function used above for MC testing
 MC_params = cell(1, MAX_ITER);
+MC_activ = zeros(2, length(t), MAX_ITER);
 MC_force = zeros(MAX_ITER, length(t));
 
 % Perform Monte Carlo
 for i = 1 : MAX_ITER
-    params.b = [
-        random('unif', 0.5*b_(1), 1.5*b_(1)),
+    % Generate params and store in MC_params
+    iter_params.b = [
+        random('unif', 0.5*b_(1), 1.5*b_(1)), ...
         random('unif', 0.5*b_(2), 1.5*b_(2))];
-    params.tau = [
-        random('unif', 0.5*tau_act_(1), 1.5*tau_act_(1)),
+    iter_params.tau = [
+        random('unif', 0.5*tau_act_(1), 1.5*tau_act_(1)), ...
         random('unif', 0.5*tau_act_(2), 1.5*tau_act_(2))];
-    params.k = [
-        random('unif', 0.5*k_(1), 1.5*k_(1)),
+    iter_params.k = [
+        random('unif', 0.5*k_(1), 1.5*k_(1)), ...
         random('unif', 0.5*k_(2), 1.5*k_(2))];
-    MC_params{i} = params;
+    MC_params{i} = iter_params;
     
+    % Generate a_slow and a_fast using new params
+    % Base a_slow and a_fast on same basic whole-muscle activation sigmoid
+    a_slow = zeros(1, length(activ_));
+    a_fast = zeros(1, length(activ_));
+    for j = 2 : length(activ_)
+        [a_slow_dot, a_fast_dot] = activation_transfer( ...
+            [activ_(j-1), a_slow(j-1), a_fast(j-1)], iter_params.tau, iter_params.b);
+        a_slow(j) = a_slow(j-1) + a_slow_dot;
+        a_fast(j) = a_fast(j-1) + a_fast_dot;
+    end
     
-    
+    % Generate force using these activation sets    
+    for j = 1 : length(t)
+        MC_force(i, j) = total_muscle_force( ...
+            a_slow(j), a_fast(j), l_opt_, l_opt_, v_0_, iter_params.k, c_, 0, theta_, 'isometric');
+    end
 end
 
 %% Model Functions
@@ -222,11 +236,11 @@ end
 % figmf(x, [a, c]) function
 % For use later to simulate fast increase in activation level
 function y = sigmoid(x, p)
-    len = length(x);
-    y = zeros(1, len);
-    a = p(1);
-    c = p(2);
-    y = 1 ./ (1 + exp(-a .* (x - c)));
+    %len = length(x);
+    %y = zeros(1, len);
+    %a = p(1);
+    %c = p(2);
+    y = 1 ./ (1 + exp(-p(1) .* (x - p(2))));
     %for i = 1 : len
     %    y(i) = 1 / (1 + exp(-a * (x(i)-c)));
     %end
