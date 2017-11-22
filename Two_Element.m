@@ -131,7 +131,6 @@ for i = 1 : MAX_ITER
         MC_force(i, j) = total_muscle_force( ...
             MC_activ(1, j, i), MC_activ(2, j, i), l_opt_, l_opt_, v_0_, iter_params.k, c_, 0, theta_, 'isometric');
         
-        
         % Populate sanity check
         %MC_force_slow(j) = total_active_force_slow(MC_activ(1, j, i), 1, 0, v_0_, iter_params.k);
         %MC_force_fast(j) = total_active_force_fast(MC_activ(2, j, i), 1, 0, v_0_, iter_params.k);
@@ -167,6 +166,31 @@ title('Max Force');
 best_params = MC_params{which_iter};
 best_activ = MC_activ(:, :, which_iter);
 
+%% Concentric Modelling
+
+% Set ode solver tolerance params
+options = odeset('RelTol', 1e-6, 'AbsTol', 1e-6);
+
+% Copy activation and force of best iter
+activation = MC_activ(:, :, which_iter);
+force = MC_force(which_iter, :);
+a_slow=activation(1,:);
+a_fast=activation(2,:);
+
+% Weight of mass attached to muscle [N]
+applied_force = 1 * 9.8;
+
+dydt = @(t, y) [ ...
+    y(1); ...
+    %total_active_force(a_slow(t), a_fast(t), l, y(2), v_0, k)];
+    (total_active_force(.7, .3, l_opt_, y(2), v_0_, best_params.k) - applied_force) / applied_force/9.8];
+
+[t, y] = ode45(dydt, [0, 10], [0, 0]', options);
+figure;
+plot(t, y);
+title('concentric');
+
+%% Eccentric Modelling
 
 
 %% Model Functions
