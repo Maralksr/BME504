@@ -154,8 +154,11 @@ title('MC force');
 
 % Find where the maximum force occurred after MC modelling
 % Recall form above that M dim of MC_force corresponds to iteration number
-[~, idx] = max(MC_force);
-which_iter = idx(1);
+% max(mat, [], 2) returns a column vector of the max of each row of mat
+% and max(vec) returns [max_of_vec, idx_of_max], where idx_of_max is the
+% row corresponding to the MC iteration that produced the best results
+[~, which_iter] = max(max(MC_force, [], 2));
+%which_iter = idx;
 
 % Include maximal force curve in subplot
 subplot(1, 2, 2);
