@@ -181,14 +181,15 @@ a_slow=activation(1,:);
 a_fast=activation(2,:);
 
 % Weight of mass attached to muscle [N]
-applied_force = 1 * 9.8;
+applied_force = 1.5;
 
 dydt = @(t, y) [ ...
     y(1); ...
     %total_active_force(a_slow(t), a_fast(t), l, y(2), v_0, k)];
-    (total_active_force(.7, .3, l_opt_, y(2), v_0_, best_params.k) - applied_force) / applied_force/9.8];
+    %(total_active_force(.7, .3, l_opt_, y(2), v_0_, best_params.k) - applied_force) / applied_force/9.8];
+    (total_active_force(activation(1, end), activation(2, end), l_opt_, y(2), v_0_, best_params.k) - applied_force) / applied_force/9.8];
 
-[t, y] = ode45(dydt, [0, 10], [0, 0]', options);
+[t, y] = ode15s(dydt, [0, 10], [0, 0]', options);
 figure;
 plot(t, y);
 title('concentric');
