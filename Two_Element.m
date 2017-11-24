@@ -157,8 +157,9 @@ title('MC force');
 % max(mat, [], 2) returns a column vector of the max of each row of mat
 % and max(vec) returns [max_of_vec, idx_of_max], where idx_of_max is the
 % row corresponding to the MC iteration that produced the best results
-[~, which_iter] = max(max(MC_force, [], 2));
-%which_iter = idx;
+[f, which_iter] = max(max(MC_force, [], 2));
+disp(sprintf("Max force produced by MC: %d", f));
+disp(sprintf("Iter where MC produced max force: %i", which_iter));
 
 % Include maximal force curve in subplot
 subplot(1, 2, 2);
@@ -177,17 +178,28 @@ options = odeset('RelTol', 1e-6, 'AbsTol', 1e-6);
 % Copy activation and force of best iter
 activation = MC_activ(:, :, which_iter);
 force = MC_force(which_iter, :);
-a_slow=activation(1,:);
-a_fast=activation(2,:);
+a_slow = activation(1,:);
+a_fast = activation(2,:);
 
 % Weight of mass attached to muscle [N]
-applied_force = 1.5;
+applied_force = .25;
+%applied_weights = [0.25, 0.50, 0.75, 1, 1.25, 1.5, 2, 2.25];
 
+% Weightings of activation curve to test for each weight
+%activation_weights = [0.25, 0.50, 0.75, 1];
+
+% Set up force balance scenario of second order diff eq as system of first
+% order diff eqs. (y_d -> y_dot; y_dd -> y_dot_dot)
 dydt = @(t, y) [ ...
     y(1); ...
     %total_active_force(a_slow(t), a_fast(t), l, y(2), v_0, k)];
     %(total_active_force(.7, .3, l_opt_, y(2), v_0_, best_params.k) - applied_force) / applied_force/9.8];
-    (total_active_force(activation(1, end), activation(2, end), l_opt_, y(2), v_0_, best_params.k) - applied_force) / applied_force/9.8];
+    % Recall total_active_force(a_slow, a_fast, l, v, v_0, k)
+    (total_active_force(a_slow(end), a_fast(end), ...
+        l_opt_-y(2), y(1), v_0_, best_params.k) - applied_force) / applied_force/9.8];
+    % function F_m = total_muscle_force_diff(a_slow, a_fast, l, l_opt, v, v_0, k, c, theta, F_applied, direction)
+    %(total_muscle_force_diff(activation(1, end), activation(2, end), ...
+    %    l_opt_+(sum(y(:,1).*sum(t))), l_opt_, y(1), v_0_, best_params.k, c_, theta_, applied_force, 'concentric') - applied_force) / (applied_force/9.8)];
 
 [t, y] = ode15s(dydt, [0, 10], [0, 0]', options);
 figure;
@@ -211,6 +223,17 @@ function F_m = total_muscle_force(a_slow, a_fast, l, l_opt, v_0, k, c, theta, F_
     F_p = force_length_passive(l);
     F_m = c * (F_f + F_p) * cos(theta);
 end
+
+
+% Total muscle force for ode solver where you can pass current velocity
+% from previous iter of solver where y(1) is y_dot
+function F_m = total_muscle_force_diff(a_slow, a_fast, l, l_opt, v, v_0, k, c, theta, F_applied, direction)
+    %v = velocity_from_force(F_applied, v_0, k, direction);
+    F_f = total_active_force(a_slow, a_fast, l/l_opt, v, v_0, k);
+    F_p = force_length_passive(l);
+    F_m = c * (F_f + F_p) * cos(theta);
+end
+
 
 % Active component of muscle force determined by this two-element model
 % Force is the sum of the force from the slow fibers and the force from the
