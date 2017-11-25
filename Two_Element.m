@@ -115,14 +115,12 @@ MAX_ITER = 100;
 MC_params = cell(1, MAX_ITER);
 
 % M x N x P: M -> [a_slow, a_fast], N -> a(t), P -> which iteration
-%MC_activ = zeros(2, length(t), MAX_ITER);
 MC_activ = zeros(2, 1, MAX_ITER);
 
 % M x N: M -> which iteration, N -> times corresponding to soln from solver
-MC_time = zeros(MAX_ITER, 1);
+MC_time = cell(1, MAX_ITER);
 
 % M x N: M -> which iteration, N -> force(t)
-%MC_force = zeros(MAX_ITER, length(t));
 MC_force = zeros(MAX_ITER, 1);
 
 %SANITY CHECKS
@@ -152,7 +150,7 @@ for i = 1 : MAX_ITER
     % Recall MC_activ: M x N x P: M -> [a_slow, a_fast], N -> a(t), P -> which iteration
     % Recall MC_time: M x N: M -> which iteration, N -> times corresponding to soln from solver
     MC_activ(1:size(a, 1), 1:size(a, 2), i) = a;
-    MC_time(i, 1:length(t)) = t;
+    MC_time{i} = t;
     
     % Use activation soln to calculate force(t)
     force = zeros(1, length(t));
@@ -179,14 +177,14 @@ fprintf("Iter where MC produced max force: %i\n", which_iter);
 figure;
 subplot(1, 2, 1);
 for i = 1 : MAX_ITER
-    plot(MC_time(i, :), MC_force(i, :));
+    plot(MC_time{i}, MC_force(i, 1:length(MC_time{i})));
     hold on;
 end
 title('MC force');
 
 % Include maximal force curve in subplot
 subplot(1, 2, 2);
-plot(MC_time(which_iter, :), MC_force(which_iter, :));
+plot(MC_time{which_iter}, MC_force(which_iter, 1:length(MC_time{which_iter})));
 title('Max Force');
 
 % Pull best parameter set and activation curve the produced maximum force
