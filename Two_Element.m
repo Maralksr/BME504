@@ -39,43 +39,62 @@ v_0_ = 2.74;
 % [k_slow, k_fast] force-velocity curvature from above paper
 k_ = [0.18, 0.29];
 
+% Set ode solver tolerance params
+options = odeset('RelTol', 1e-6, 'AbsTol', 1e-6);
+
 %% Running model
 % Define activation functions for evaluating fitness
-dt = 0.001;
-t = 0 : dt : 10;
-activ_ = sigmoid(t, [2, 4]);
-%activ_ = 0 : .0001 : 1;     % activation ramp of muscle activation from which to get slow and fast fiber activations
+%dt = 0.001;
+%t = 0 : dt : 10;
+t_ = 0 : 1000;  % [ms]
+activ_ = sigmoid(t_, [0.025, 500]);
+
+% Activation transfer function as an anon fxn for ode integration
+dadt = @(t, y, tau, b) [ ...
+    (1/tau(1))*sigmoid(t, [0.025, 500]) - ((1/tau(1))*(b(1)+(1-b(1))*sigmoid(t, [0.025, 500])))*y(1); ...
+    (1/tau(2))*y(1) - ((1/tau(2))*(b(2)+(1-b(2))*y(1)))*y(2)];
 
 % Get activations of fibers over ramp activation of muscle
-activ_step = activ_(2) - activ_(1);
-activ_slow = zeros(1, length(activ_));
-activ_fast = zeros(1, length(activ_));
-for i = 2 : length(activ_)
-    %populate slow and fast fiber activations
-    %all activations start at zero, then use a_dot values to proceed to populate a(t) for fiber types
-    [a_slow_dot, a_fast_dot] = activation_transfer([activ_(i-1), activ_slow(i-1), activ_fast(i-1)], tau_act_, b_);
-    activ_slow(i) = activ_slow(i-1) + a_slow_dot;
-    activ_fast(i) = activ_fast(i-1) + a_fast_dot;
-end
+% activ_step = activ_(2) - activ_(1);
+% activ_slow = zeros(1, length(activ_));
+% activ_fast = zeros(1, length(activ_));
+% for i = 2 : length(activ_)
+%     %populate slow and fast fiber activations
+%     %all activations start at zero, then use a_dot values to proceed to populate a(t) for fiber types
+%     [a_slow_dot, a_fast_dot] = activation_transfer([activ_(i-1), activ_slow(i-1), activ_fast(i-1)], tau_act_, b_);
+%     activ_slow(i) = activ_slow(i-1) + a_slow_dot;
+%     activ_fast(i) = activ_fast(i-1) + a_fast_dot;
+% end
+
+[t, a] = ode45(@(t, a) dadt(t, a, tau_act_, b_), [0, 1000], [0, 0]');
+activ_slow = a(:, 1)';
+activ_fast = a(:, 2)';
 
 % Calculate total muscle force generated over activation function
-force = zeros(1, length(activ_));
-for i = 1 : length(activ_)
+force = zeros(1, size(a, 1));
+for i = 1 : size(a, 1)
     force(i) = total_muscle_force(activ_slow(i), activ_fast(i), l_opt_, l_opt_, v_0_, k_, c_, theta_, 0, 'isometric');
 end
 
 % TEMP: plot a and force
 figure;
-plot(t, activ_, 'b');
+plot(t_, activ_, 'b');
 hold on;
 plot(t, activ_slow, 'g');
 hold on;
 plot(t, activ_fast, 'r');
-title('a');
+title('Activation Curves of Fibers');
+legend('Whole Muscle Activation', 'Slow Fiber Activation', 'Fast Fiber Activation', ...
+    'Location', 'Southeast');
+ylabel('Activation Level');
+xlabel('Time [ms]');
 
 figure;
 plot(t, force);
 title('force');
+title('Force Production');
+ylabel('Force [N]');
+xlabel('Time [ms]');
 
 %% Monte Carlo
 % For two-element model, want to stochastically model
@@ -96,61 +115,56 @@ MAX_ITER = 100;
 MC_params = cell(1, MAX_ITER);
 
 % M x N x P: M -> [a_slow, a_fast], N -> a(t), P -> which iteration
-MC_activ = zeros(2, length(t), MAX_ITER);
+%MC_activ = zeros(2, length(t), MAX_ITER);
+MC_activ = zeros(2, 1, MAX_ITER);
+
+% M x N: M -> which iteration, N -> times corresponding to soln from solver
+MC_time = zeros(MAX_ITER, 1);
 
 % M x N: M -> which iteration, N -> force(t)
-MC_force = zeros(MAX_ITER, length(t));
+%MC_force = zeros(MAX_ITER, length(t));
+MC_force = zeros(MAX_ITER, 1);
 
 %SANITY CHECKS
-MC_force_slow = zeros(1, length(t));
-MC_force_fast = zeros(1, length(t));
+%MC_force_slow = zeros(1, length(t));
+%MC_force_fast = zeros(1, length(t));
 
 % Perform Monte Carlo
 for i = 1 : MAX_ITER
     % Generate params and store in MC_params
-    iter_params.b = [
+    params.b = [
         random('unif', 0.5*b_(1), 1.5*b_(1)), ...
         random('unif', 0.5*b_(2), 1.5*b_(2))];
-    iter_params.tau = [
+    params.tau = [
         random('unif', 0.5*tau_act_(1), 1.5*tau_act_(1)), ...
         random('unif', 0.5*tau_act_(2), 1.5*tau_act_(2))];
-    iter_params.k = [
+    params.k = [
         random('unif', 0.5*k_(1), 1.5*k_(1)), ...
         random('unif', 0.5*k_(2), 1.5*k_(2))];
-    MC_params{i} = iter_params;
+    MC_params{i} = params;
     
-    % Generate a_slow and a_fast using new params
-    % Base a_slow and a_fast on same basic whole-muscle activation sigmoid
-    for j = 2 : length(t)
-        [a_slow_dot, a_fast_dot] = activation_transfer( ...
-            [activ_(j-1), MC_activ(1, j-1, i), MC_activ(2, j-1, i)], iter_params.tau, iter_params.b);
-        MC_activ(1, j, i) = MC_activ(1, j-1, i) + a_slow_dot;
-        MC_activ(2, j, i) = MC_activ(2, j-1, i) + a_fast_dot;
-        
-        % Generate force using these activation sets
-        MC_force(i, j) = total_muscle_force( ...
-            MC_activ(1, j, i), MC_activ(2, j, i), l_opt_, l_opt_, v_0_, iter_params.k, c_, 0, theta_, 'isometric');
-        
-        % Populate sanity check
-        %MC_force_slow(j) = total_active_force_slow(MC_activ(1, j, i), 1, 0, v_0_, iter_params.k);
-        %MC_force_fast(j) = total_active_force_fast(MC_activ(2, j, i), 1, 0, v_0_, iter_params.k);
-       
+    % Integrate activation for fibers using new params
+    [t, a] = ode45(@(t, a) dadt(t, a, params.tau, params.b), [0, 1000], [0, 0]');
+    a = a';
+    t = t';
+    
+    % Store solution
+    % Recall MC_activ: M x N x P: M -> [a_slow, a_fast], N -> a(t), P -> which iteration
+    % Recall MC_time: M x N: M -> which iteration, N -> times corresponding to soln from solver
+    MC_activ(1:size(a, 1), 1:size(a, 2), i) = a;
+    MC_time(i, 1:length(t)) = t;
+    
+    % Use activation soln to calculate force(t)
+    force = zeros(1, length(t));
+    for j = 1 : length(force)
+        force(j) = total_muscle_force( ...
+            a(1, j), a(2, j), l_opt_, l_opt_, v_0_, params.k, c_, 0, theta_, 'isometric');
     end
-    % Plot sanity check
-    %figure;
-    %plot(t, MC_force_slow);
-    %hold on;
-    %plot(t, MC_force_fast);
+    
+    % Store solution
+    % Recall MC_force: M x N: M -> which iteration, N -> force(t)
+    MC_force(i, 1:length(force)) = force;
 end
-
-% TEMP plot force production after MC modelling contained in MC_force
-figure;
-subplot(1, 2, 1);
-for i = 1 : MAX_ITER
-    hold on;
-    plot(t, MC_force(i, :));
-end
-title('MC force');
 
 % Find where the maximum force occurred after MC modelling
 % Recall form above that M dim of MC_force corresponds to iteration number
@@ -158,12 +172,21 @@ title('MC force');
 % and max(vec) returns [max_of_vec, idx_of_max], where idx_of_max is the
 % row corresponding to the MC iteration that produced the best results
 [f, which_iter] = max(max(MC_force, [], 2));
-disp(sprintf("Max force produced by MC: %d", f));
-disp(sprintf("Iter where MC produced max force: %i", which_iter));
+fprintf("Max force produced by MC: %d\n", f);
+fprintf("Iter where MC produced max force: %i\n", which_iter);
+
+% Plot force production after MC modelling contained in MC_force
+figure;
+subplot(1, 2, 1);
+for i = 1 : MAX_ITER
+    plot(MC_time(i, :), MC_force(i, :));
+    hold on;
+end
+title('MC force');
 
 % Include maximal force curve in subplot
 subplot(1, 2, 2);
-plot(t, MC_force(which_iter, :));
+plot(MC_time(which_iter, :), MC_force(which_iter, :));
 title('Max Force');
 
 % Pull best parameter set and activation curve the produced maximum force
@@ -171,9 +194,6 @@ best_params = MC_params{which_iter};
 best_activ = MC_activ(:, :, which_iter);
 
 %% Concentric Modelling
-
-% Set ode solver tolerance params
-options = odeset('RelTol', 1e-6, 'AbsTol', 1e-6);
 
 % Copy activation and force of best iter
 activation = MC_activ(:, :, which_iter);

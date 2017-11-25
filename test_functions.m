@@ -1,20 +1,28 @@
 
 close all;
+clear all;
 
-tau = [34.06, 18.14];
-b = [0.73, 9.90];
+tau_act_ = [34.06, 18.14];
+b_ = [0.73, 9.90];
 
-x = 0 : .01 : 10;
-y = sigmoid(x, [2, 4]);
-plot(x, y);
+%x = 0 : .01 : 10;
+%y = sigmoid(x, [2, 4]);
+%plot(x, y);
 
 % Convert activation_transfer from below into anon fxn that can be
 % integrated easily by ode numerical solver
-dadt = @(t, y) [ ...
+dadt = @(t, y, tau, b) [ ...
     (1/tau(1))*sigmoid(t, [2, 4]) - ((1/tau(1))*(b(1)+(1-b(1))*sigmoid(t, [2, 4])))*y(1); ...
     (1/tau(2))*y(1) - ((1/tau(2))*(b(2)+(1-b(2))*y(1)))*y(2)];
-[t, y] = ode45(dadt, [0, 1000], [0, 0]');
-plot(t, y);
+[t, y] = ode45(@(t, y) dadt(t, y, tau_act_, b_), [0, 1000], [0, 0]');
+plot([0 : 1000]./1000, sigmoid(0:1000, [2, 4]));
+hold on
+plot(t./1000, y);
+
+
+test = sigmoid(1 : 1000, [.025, 500]);
+figure;
+plot(test);
 
 
 function [a_dot_slow, a_dot_fast] = activation_transfer(a, tau, b)
