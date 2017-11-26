@@ -50,23 +50,12 @@ t_ = 0 : 1000;  % [ms]
 activ_ = sigmoid(t_, [0.025, 500]);
 
 % Activation transfer function as an anon fxn for ode integration
-dadt = @(t, y, tau, b) [ ...
-    (1/tau(1))*sigmoid(t, [0.025, 500]) - ((1/tau(1))*(b(1)+(1-b(1))*sigmoid(t, [0.025, 500])))*y(1); ...
-    (1/tau(2))*y(1) - ((1/tau(2))*(b(2)+(1-b(2))*y(1)))*y(2)];
+% dadt = @(t, y, tau, b, attenuation) [ ...
+%     (1/tau(1))*attenuation*sigmoid(t, [0.025, 500]) - ((1/tau(1))*(b(1)+(1-b(1))*attenuation*sigmoid(t, [0.025, 500])))*y(1); ...
+%     (1/tau(2))*y(1) - ((1/tau(2))*(b(2)+(1-b(2))*y(1)))*y(2)];
 
-% Get activations of fibers over ramp activation of muscle
-% activ_step = activ_(2) - activ_(1);
-% activ_slow = zeros(1, length(activ_));
-% activ_fast = zeros(1, length(activ_));
-% for i = 2 : length(activ_)
-%     %populate slow and fast fiber activations
-%     %all activations start at zero, then use a_dot values to proceed to populate a(t) for fiber types
-%     [a_slow_dot, a_fast_dot] = activation_transfer([activ_(i-1), activ_slow(i-1), activ_fast(i-1)], tau_act_, b_);
-%     activ_slow(i) = activ_slow(i-1) + a_slow_dot;
-%     activ_fast(i) = activ_fast(i-1) + a_fast_dot;
-% end
 
-[t, a] = ode45(@(t, a) dadt(t, a, tau_act_, b_), [0, 1000], [0, 0]');
+[t, a] = ode45(@(t, a) dadt(t, a, tau_act_, b_, 1), [0, 1000], [0, 0]');
 activ_slow = a(:, 1)';
 activ_fast = a(:, 2)';
 
@@ -76,7 +65,7 @@ for i = 1 : size(a, 1)
     force(i) = total_muscle_force(activ_slow(i), activ_fast(i), l_opt_, l_opt_, v_0_, k_, c_, theta_, 0, 'isometric');
 end
 
-% TEMP: plot a and force
+% Plot a and force
 figure;
 plot(t_, activ_, 'b');
 hold on;
@@ -123,10 +112,6 @@ MC_time = cell(1, MAX_ITER);
 % M x N: M -> which iteration, N -> force(t)
 MC_force = zeros(MAX_ITER, 1);
 
-%SANITY CHECKS
-%MC_force_slow = zeros(1, length(t));
-%MC_force_fast = zeros(1, length(t));
-
 % Perform Monte Carlo
 for i = 1 : MAX_ITER
     % Generate params and store in MC_params
@@ -142,7 +127,7 @@ for i = 1 : MAX_ITER
     MC_params{i} = params;
     
     % Integrate activation for fibers using new params
-    [t, a] = ode45(@(t, a) dadt(t, a, params.tau, params.b), [0, 1000], [0, 0]');
+    [t, a] = ode45(@(t, a) dadt(t, a, params.tau, params.b, 1), [0, 1000], [0, 0]');
     a = a';
     t = t';
     
@@ -180,12 +165,12 @@ for i = 1 : MAX_ITER
     plot(MC_time{i}, MC_force(i, 1:length(MC_time{i})));
     hold on;
 end
-title('MC force');
+title('MC Force(t)');
 
 % Include maximal force curve in subplot
 subplot(1, 2, 2);
 plot(MC_time{which_iter}, MC_force(which_iter, 1:length(MC_time{which_iter})));
-title('Max Force');
+title('Max Force(t)');
 
 % Pull best parameter set and activation curve the produced maximum force
 best_params = MC_params{which_iter};
@@ -193,11 +178,13 @@ best_activ = MC_activ(:, :, which_iter);
 
 %% Concentric Modelling
 
-% Copy activation and force of best iter
-activation = MC_activ(:, :, which_iter);
-force = MC_force(which_iter, :);
-a_slow = activation(1,:);
-a_fast = activation(2,:);
+% TEST: get functions that fit the activation curves to evaluate a(t)
+% faster when solving force ode
+%sig_fit = @(p, t) 1 ./ (1 + exp(-p(1) .* (t - p(2))));
+%a_slow_sigmoid_params = lsqcurvefit(sig_fit, [0, 0], MC_time{which_iter}, best_activ(1, 1:length(MC_time{which_iter})));
+%a_fast_sigmoid_params = lsqcurvefit(sig_fit, [0, 0], MC_time{which_iter}, best_activ(2, 1:length(MC_time{which_iter})));
+%figure;
+%plot(MC_time{which_iter}, sig_fit(a_slow_sigmoid_params, MC_time{which_iter}));
 
 % Weight of mass attached to muscle [N]
 applied_force = .25;
@@ -206,20 +193,24 @@ applied_force = .25;
 % Weightings of activation curve to test for each weight
 %activation_weights = [0.25, 0.50, 0.75, 1];
 
-% Set up force balance scenario of second order diff eq as system of first
-% order diff eqs. (y_d -> y_dot; y_dd -> y_dot_dot)
-dydt = @(t, y) [ ...
-    y(1); ...
-    %total_active_force(a_slow(t), a_fast(t), l, y(2), v_0, k)];
-    %(total_active_force(.7, .3, l_opt_, y(2), v_0_, best_params.k) - applied_force) / applied_force/9.8];
-    % Recall total_active_force(a_slow, a_fast, l, v, v_0, k)
-    (total_active_force(a_slow(end), a_fast(end), ...
-        l_opt_-y(2), y(1), v_0_, best_params.k) - applied_force) / applied_force/9.8];
-    % function F_m = total_muscle_force_diff(a_slow, a_fast, l, l_opt, v, v_0, k, c, theta, F_applied, direction)
-    %(total_muscle_force_diff(activation(1, end), activation(2, end), ...
-    %    l_opt_+(sum(y(:,1).*sum(t))), l_opt_, y(1), v_0_, best_params.k, c_, theta_, applied_force, 'concentric') - applied_force) / (applied_force/9.8)];
+% Set up force balance scenario of second order diff eq as system of first order diff eqs
+% dydt = @(t, y) [ ...
+%     y(1); ...
+%     (total_active_force(a_slow(end), a_fast(end), ...
+%         l_opt_-y(2), y(1), v_0_, best_params.k) - applied_force) / applied_force/9.8];
 
-[t, y] = ode15s(dydt, [0, 10], [0, 0]', options);
+%[t, y] = ode15s(dydt, [0, 10], [0, 0]', options);
+[t, y] = ode15s(@(t, y) dYdt(t, y, best_params, l_opt_, v_0_, c_, theta_, 1, applied_force), [1, 1000], [0, 0]', options);
+
+% dt = 0.01;
+% t = 0 : dt : 1000-dt;
+% y = zeros(length(t), 2);
+% for i = 2 : length(t)
+%     dy = dYdt(t(i), y(i-1, :), best_params, l_opt_, v_0_, c_, theta_, 1, applied_force);
+%     y(i, 1) = y(i-1, 1) + (dy(1) * dt);
+%     y(i, 2) = y(i-1, 2) + (dy(2) * dt);
+% end
+
 figure;
 plot(t, y);
 title('concentric');
@@ -228,6 +219,36 @@ title('concentric');
 
 
 %% Model Functions
+
+% Function for integrating motion instead of current anon fxn dydt
+function out = dYdt(t, y, params, l_opt, v_0, c, theta, attenuation, applied_force)
+    [~, a] = ode45(@(t_a, a) dadt(t_a, a, params.tau, params.b, attenuation), [0, t], [0, 0]');
+    a_slow = a(end, 1);
+    a_fast = a(end, 2);
+    
+    % Signatures
+    % total_muscle_force(a_slow, a_fast, l, l_opt, v_0, k, c, theta, F_applied, direction)
+    % total_active_force(a_slow, a_fast, l, v, v_0, k)
+    % muscle_force(a_slow, a_fast, l, l_opt, v, v_0, k, c, theta)  better for integrating here
+    %out = zeros(2, 1);
+    %out(1) = y(2);
+    % works but not really right
+    %out(2) = (total_active_force(a_slow, a_fast, l_opt-y(2), y(1), v_0, params.k) - applied_force) / applied_force/9.8;
+    % doesn't work but right
+    %out(2) = (muscle_force(a_slow, a_fast, l_opt+y(1), l_opt, y(2), v_0, params.k, c, theta) - applied_force) / (applied_force/9.8);
+    
+    out = [ ...
+        y(2); ...
+        %(total_active_force(a_slow, a_fast, l_opt+y(1), y(2), v_0, params.k) - applied_force) / applied_force/9.8];
+        (muscle_force(a_slow, a_fast, l_opt+y(1), l_opt, y(2), v_0, params.k, c, theta) - applied_force) / (applied_force/9.8)];
+end
+
+% Function for integrating activation
+function a = dadt(t, y, tau, b, attenuation)
+    a = zeros(2, 1);
+    a(1) = (1/tau(1))*attenuation*sigmoid(t, [0.025, 500]) - ((1/tau(1))*(b(1)+(1-b(1))*attenuation*sigmoid(t, [0.025, 500])))*y(1);
+    a(2) = (1/tau(2))*y(1) - ((1/tau(2))*(b(2)+(1-b(2))*y(1)))*y(2);
+end 
 
 % Total muscle force
 % Fm = c(F_f + F_p(l)) * cos(theta)
@@ -238,20 +259,17 @@ title('concentric');
 function F_m = total_muscle_force(a_slow, a_fast, l, l_opt, v_0, k, c, theta, F_applied, direction)
     v = velocity_from_force(F_applied, v_0, k, direction);
     F_f = total_active_force(a_slow, a_fast, l/l_opt, v, v_0, k);
-    F_p = force_length_passive(l);
+    F_p = force_length_passive(l/l_opt);
     F_m = c * (F_f + F_p) * cos(theta);
 end
 
-
-% Total muscle force for ode solver where you can pass current velocity
-% from previous iter of solver where y(1) is y_dot
-function F_m = total_muscle_force_diff(a_slow, a_fast, l, l_opt, v, v_0, k, c, theta, F_applied, direction)
-    %v = velocity_from_force(F_applied, v_0, k, direction);
+% Total muscle force that doesn't depend on passing contraction condition
+% and depends on v explicitly. Better for integration during simulation.
+function F_m = muscle_force(a_slow, a_fast, l, l_opt, v, v_0, k, c, theta)
     F_f = total_active_force(a_slow, a_fast, l/l_opt, v, v_0, k);
-    F_p = force_length_passive(l);
-    F_m = c * (F_f + F_p) * cos(theta);
+    F_p = force_length_passive(l/l_opt);
+    F_m = c * (F_f + F_p) * cos(theta);    
 end
-
 
 % Active component of muscle force determined by this two-element model
 % Force is the sum of the force from the slow fibers and the force from the
