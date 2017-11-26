@@ -176,7 +176,7 @@ title('Max Force(t)');
 best_params = MC_params{which_iter};
 best_activ = MC_activ(:, :, which_iter);
 
-%% Concentric Modelling
+%% Concentric and Eccentric Modelling
 
 % TEST: get functions that fit the activation curves to evaluate a(t)
 % faster when solving force ode
@@ -188,10 +188,10 @@ best_activ = MC_activ(:, :, which_iter);
 
 % Weight of mass attached to muscle [N]
 applied_force = .25;
-%applied_weights = [0.25, 0.50, 0.75, 1, 1.25, 1.5, 2, 2.25];
+applied_forces = [0.50, 1, 1.5, 2, 2.5, 3.0, 3.5, 4.0];
 
 % Weightings of activation curve to test for each weight
-%activation_weights = [0.25, 0.50, 0.75, 1];
+attenuations = [0.2, 0.4, 0.6, 0.8, 1.0];
 
 % Set up force balance scenario of second order diff eq as system of first order diff eqs
 % dydt = @(t, y) [ ...
@@ -200,22 +200,27 @@ applied_force = .25;
 %         l_opt_-y(2), y(1), v_0_, best_params.k) - applied_force) / applied_force/9.8];
 
 %[t, y] = ode15s(dydt, [0, 10], [0, 0]', options);
-[t, y] = ode15s(@(t, y) dYdt(t, y, best_params, l_opt_, v_0_, c_, theta_, 1, applied_force), [1, 1000], [0, 0]', options);
 
-% dt = 0.01;
-% t = 0 : dt : 1000-dt;
-% y = zeros(length(t), 2);
-% for i = 2 : length(t)
-%     dy = dYdt(t(i), y(i-1, :), best_params, l_opt_, v_0_, c_, theta_, 1, applied_force);
-%     y(i, 1) = y(i-1, 1) + (dy(1) * dt);
-%     y(i, 2) = y(i-1, 2) + (dy(2) * dt);
-% end
-
-figure;
-plot(t, y);
-title('concentric');
-
-%% Eccentric Modelling
+% Perform modelling for each applied weight for each activation attenuation
+% Create simulation to show in a figure for a single applied weight with a
+% curve for simulation using each attenuation
+%[t, y] = ode15s(@(t, y) dYdt(t, y, best_params, l_opt_, v_0_, c_, theta_, 1, applied_force), [1, 1000], [0, 0]');
+for app = 1 : length(applied_forces)
+    modeled_y = zeros(length(attenuations), 1);
+    modeled_t = cell(1, length(attenuations));
+    for att = 1 : length(attenuations)
+        [t, y] = ode15s(@(t, y) dYdt(t, y, best_params, l_opt_, v_0_, c_, theta_, attenuations(att), applied_forces(app)), [1, 1000], [0, 0]');
+        modeled_y(att, 1:length(y(:, 1))) = y(:, 1)';
+        modeled_t{att} = t;
+    end
+    figure;
+    for i = 1 : size(modeled_y, 1)
+        hold on;
+        plot(modeled_t{i}, modeled_y(i, 1:length(modeled_t{i})));
+    end
+    title(sprintf('Modeled Movement When %d N Weight Applied', applied_forces(app)));
+    legend('Att=0.2', 'Att=0.4', 'Att=0.6', 'Att=0.8', 'Att=1.0', 'Location', 'Southwest');
+end
 
 
 %% Model Functions
