@@ -187,7 +187,6 @@ best_activ = MC_activ(:, :, which_iter);
 %plot(MC_time{which_iter}, sig_fit(a_slow_sigmoid_params, MC_time{which_iter}));
 
 % Weight of mass attached to muscle [N]
-applied_force = .25;
 applied_forces = [0.50, 1, 1.5, 2, 2.5, 3.0, 3.5, 4.0];
 
 % Weightings of activation curve to test for each weight
@@ -206,19 +205,57 @@ attenuations = [0.2, 0.4, 0.6, 0.8, 1.0];
 % curve for simulation using each attenuation
 %[t, y] = ode15s(@(t, y) dYdt(t, y, best_params, l_opt_, v_0_, c_, theta_, 1, applied_force), [1, 1000], [0, 0]');
 for app = 1 : length(applied_forces)
-    modeled_y = zeros(length(attenuations), 1);
-    modeled_t = cell(1, length(attenuations));
+    % Store displacement, velocity, time the model ran for, and fiber 
+    % activations that were used during that time interval for calculating
+    % force produced
+    modeled_v = cell(1, length(attenuations));
+    modeled_y = cell(1, length(attenuations));
+    modeled_d_t = cell(1, length(attenuations)); % t from modelling displacement
+    modeled_a_t = cell(1, length(attenuations)); % t from modelling activation
+    modeled_a = cell(1, length(attenuations));
+    modeled_f = cell(1, length(attenuations));
+    
+    % Calculate displacement and plot
     for att = 1 : length(attenuations)
         [t, y] = ode15s(@(t, y) dYdt(t, y, best_params, l_opt_, v_0_, c_, theta_, attenuations(att), applied_forces(app)), [1, 1000], [0, 0]');
-        modeled_y(att, 1:length(y(:, 1))) = y(:, 1)';
-        modeled_t{att} = t;
+        modeled_y{att} = y(:, 1)';
+        modeled_v{att} = y(:, 2)';
+        modeled_d_t{att} = t';
     end
+    
     figure;
-    for i = 1 : size(modeled_y, 1)
+    subplot(1, 2, 1);
+    for i = 1 : length(attenuations)
         hold on;
-        plot(modeled_t{i}, modeled_y(i, 1:length(modeled_t{i})));
+        plot(modeled_d_t{i}, modeled_y{i});
     end
-    title(sprintf('Modeled Movement When %d N Weight Applied', applied_forces(app)));
+    title(sprintf('Modeled Movement When\n%.1f N Weight Applied', applied_forces(app)));
+    ylabel('Displacement');
+    xlabel('Time');
+    legend('Att=0.2', 'Att=0.4', 'Att=0.6', 'Att=0.8', 'Att=1.0', 'Location', 'Southwest');
+    
+    % Calculate a and therefore force over the time intervals used and plot
+    for m = 1 : length(attenuations)
+        [t, a] = ode45(@(t, a) dadt(t, a, best_params.tau, best_params.b, attenuations(m)), [0, modeled_d_t{m}(end)], [0, 0]');
+        modeled_a{m} = a';
+        modeled_a_t{m} = t';
+    end
+    for m = 1 : length(attenuations)
+        f = zeros(1, size(modeled_a{m}, 2));
+        for j = 1 : size(f, 2)
+            % Signature muscle_force(a_slow, a_fast, l, l_opt, v, v_0, k, c, theta)
+            f(j) = muscle_force(modeled_a{m}(1, j), modeled_a{m}(2, j), l_opt_+modeled_y{m}(j), l_opt_, modeled_v{m}(j), v_0_, k_, c_, theta_);
+        end
+        modeled_f{m} = f;
+    end
+    subplot(1, 2, 2);
+    for i = 1 : length(attenuations)
+        hold on;
+        plot(modeled_a_t{i}, modeled_f{i});
+    end
+    title(sprintf('Modeled Force when\n%.1f N Weight Applied', applied_forces(app)));
+    ylabel('Force');
+    xlabel('Time');
     legend('Att=0.2', 'Att=0.4', 'Att=0.6', 'Att=0.8', 'Att=1.0', 'Location', 'Southwest');
 end
 
