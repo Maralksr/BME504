@@ -55,7 +55,7 @@ activ_ = sigmoid(t_, [0.025, 500]);
 %     (1/tau(2))*y(1) - ((1/tau(2))*(b(2)+(1-b(2))*y(1)))*y(2)];
 
 
-[t, a] = ode45(@(t, a) dadt(t, a, tau_act_, b_, 1), [0, 1000], [0, 0]');
+[t, a] = ode45(@(t, a) dadt(t, a, tau_act_, b_), [0, 1000], [0, 0]');
 activ_slow = a(:, 1)';
 activ_fast = a(:, 2)';
 
@@ -127,7 +127,7 @@ for i = 1 : MAX_ITER
     MC_params{i} = params;
     
     % Integrate activation for fibers using new params
-    [t, a] = ode45(@(t, a) dadt(t, a, params.tau, params.b, 1), [0, 1000], [0, 0]');
+    [t, a] = ode45(@(t, a) dadt(t, a, params.tau, params.b), [0, 1000], [0, 0]');
     a = a';
     t = t';
     
@@ -190,15 +190,7 @@ best_activ = MC_activ(:, :, which_iter);
 applied_forces = [0.50, 1, 1.5, 2, 2.5, 3.0, 3.5, 4.0];
 
 % Weightings of activation curve to test for each weight
-attenuations = [0.2, 0.4, 0.6, 0.8, 1.0];
-
-% Set up force balance scenario of second order diff eq as system of first order diff eqs
-% dydt = @(t, y) [ ...
-%     y(1); ...
-%     (total_active_force(a_slow(end), a_fast(end), ...
-%         l_opt_-y(2), y(1), v_0_, best_params.k) - applied_force) / applied_force/9.8];
-
-%[t, y] = ode15s(dydt, [0, 10], [0, 0]', options);
+attenuations = [0.2, 0.4, 0.6, 0.8, 0.95];
 
 % Perform modelling for each applied weight for each activation attenuation
 % Create simulation to show in a figure for a single applied weight with a
@@ -217,7 +209,7 @@ for app = 1 : length(applied_forces)
     
     % Calculate displacement and plot
     for att = 1 : length(attenuations)
-        [t, y] = ode15s(@(t, y) dYdt(t, y, best_params, l_opt_, v_0_, c_, theta_, attenuations(att), applied_forces(app)), [1, 1000], [0, 0]');
+        [t, y] = ode15s(@(t, y) dYdt(t, y, best_params, l_opt_, v_0_, c_, theta_, attenuations(att), applied_forces(app)), [0, 1000], [0, 0]');
         modeled_y{att} = y(:, 1)';
         modeled_v{att} = y(:, 2)';
         modeled_d_t{att} = t';
@@ -232,11 +224,11 @@ for app = 1 : length(applied_forces)
     title(sprintf('Modeled Movement When\n%.1f N Weight Applied', applied_forces(app)));
     ylabel('Displacement');
     xlabel('Time');
-    legend('Att=0.2', 'Att=0.4', 'Att=0.6', 'Att=0.8', 'Att=1.0', 'Location', 'Southwest');
+    legend('Att=0.2', 'Att=0.4', 'Att=0.6', 'Att=0.8', 'Att=1.0', 'Location', 'Southeast');
     
     % Calculate a and therefore force over the time intervals used and plot
     for m = 1 : length(attenuations)
-        [t, a] = ode45(@(t, a) dadt(t, a, best_params.tau, best_params.b, attenuations(m)), [0, modeled_d_t{m}(end)], [0, 0]');
+        [t, a] = ode45(@(t, a) dadt(t, a, best_params.tau, best_params.b), [0, modeled_d_t{m}(end)], [0, 0]');
         modeled_a{m} = a';
         modeled_a_t{m} = t';
     end
@@ -256,7 +248,7 @@ for app = 1 : length(applied_forces)
     title(sprintf('Modeled Force when\n%.1f N Weight Applied', applied_forces(app)));
     ylabel('Force');
     xlabel('Time');
-    legend('Att=0.2', 'Att=0.4', 'Att=0.6', 'Att=0.8', 'Att=1.0', 'Location', 'Southwest');
+    legend('Att=0.2', 'Att=0.4', 'Att=0.6', 'Att=0.8', 'Att=1.0', 'Location', 'Southeast');
 end
 
 
@@ -264,7 +256,15 @@ end
 
 % Function for integrating motion instead of current anon fxn dydt
 function out = dYdt(t, y, params, l_opt, v_0, c, theta, attenuation, applied_force)
-    [~, a] = ode45(@(t_a, a) dadt(t_a, a, params.tau, params.b, attenuation), [0, t], [0, 0]');
+    dt = 0.1;
+    temp_t = 0 : dt : 1000;
+    sig = sigmoid(temp_t, [0.025, 500]);
+    sig(sig > attenuation) = 0;
+    [~, idx] = max(sig);
+    att_t = idx * dt;
+    
+
+    [~, a] = ode45(@(t_a, a) dadt(t_a, a, params.tau, params.b), [0, att_t], [0, 0]');
     a_slow = a(end, 1);
     a_fast = a(end, 2);
     
@@ -286,9 +286,9 @@ function out = dYdt(t, y, params, l_opt, v_0, c, theta, attenuation, applied_for
 end
 
 % Function for integrating activation
-function a = dadt(t, y, tau, b, attenuation)
+function a = dadt(t, y, tau, b)
     a = zeros(2, 1);
-    a(1) = (1/tau(1))*attenuation*sigmoid(t, [0.025, 500]) - ((1/tau(1))*(b(1)+(1-b(1))*attenuation*sigmoid(t, [0.025, 500])))*y(1);
+    a(1) = (1/tau(1))*sigmoid(t, [0.025, 500]) - ((1/tau(1))*(b(1)+(1-b(1))*sigmoid(t, [0.025, 500])))*y(1);
     a(2) = (1/tau(2))*y(1) - ((1/tau(2))*(b(2)+(1-b(2))*y(1)))*y(2);
 end 
 

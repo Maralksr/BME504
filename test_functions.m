@@ -5,25 +5,33 @@ clear all;
 tau_act_ = [34.06, 18.14];
 b_ = [0.73, 9.90];
 
-%x = 0 : .01 : 10;
-%y = sigmoid(x, [2, 4]);
-%plot(x, y);
-
-% Convert activation_transfer from below into anon fxn that can be
-% integrated easily by ode numerical solver
-dadt = @(t, y, tau, b) [ ...
-    (1/tau(1))*sigmoid(t, [2, 4]) - ((1/tau(1))*(b(1)+(1-b(1))*sigmoid(t, [2, 4])))*y(1); ...
-    (1/tau(2))*y(1) - ((1/tau(2))*(b(2)+(1-b(2))*y(1)))*y(2)];
-[t, y] = ode45(@(t, y) dadt(t, y, tau_act_, b_), [0, 1000], [0, 0]');
-plot([0 : 1000]./1000, sigmoid(0:1000, [2, 4]));
-hold on
-plot(t./1000, y);
-
-
-test = sigmoid(1 : 1000, [.025, 500]);
+dt = 0.1;
+t = 0 : dt : 1000;
+sig = sigmoid(t, [.025, 500]);
 figure;
-plot(test);
+plot(t, sig);
 
+attenuation = 0.3;
+sig(sig > attenuation) = 0;
+figure;
+plot(t, sig);
+
+[~, idx] = max(sig);
+att_t = idx * dt
+
+[t, a] = ode45(@(t, a) dadt(t, a, tau_act_, b_), [0, att_t], [0, 0]');
+figure;
+plot(t, a);
+
+
+
+
+
+function a = dadt(t, y, tau, b)
+    a = zeros(2, 1);
+    a(1) = (1/tau(1))*sigmoid(t, [0.025, 500]) - ((1/tau(1))*(b(1)+(1-b(1))*sigmoid(t, [0.025, 500])))*y(1);
+    a(2) = (1/tau(2))*y(1) - ((1/tau(2))*(b(2)+(1-b(2))*y(1)))*y(2);
+end 
 
 function [a_dot_slow, a_dot_fast] = activation_transfer(a, tau, b)
     % Returns a_dot as vector [a2_dot, a3_dot]
@@ -41,12 +49,5 @@ function [a_dot_slow, a_dot_fast] = activation_transfer(a, tau, b)
 end
 
 function y = sigmoid(x, p)
-    % In place of Matlab's fuzzy logic toolbox sigmf(x, [a, c]) function
-    len = length(x);
-    y = zeros(1, len);
-    a = p(1);
-    c = p(2);
-    parfor i = 1 : len
-        y(i) = 1 / (1 + exp(-a * (x(i)-c)));
-    end
+    y = 1 ./ (1 + exp(-p(1) .* (x - p(2))));
 end
