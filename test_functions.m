@@ -4,17 +4,17 @@ clear all;
 
 tau_act_ = [34.06, 18.14];
 b_ = [0.73, 9.90];
+attenuation = 0.3;
 
 dt = 0.1;
 t = 0 : dt : 1000;
-sig = sigmoid(t, [.025, 500]);
+sig = attenuation.*sigmoid(t, [.025, 500]);
 figure;
 plot(t, sig);
 
-attenuation = 0.3;
-sig(sig > attenuation) = 0;
-figure;
-plot(t, sig);
+% sig(sig > attenuation) = 0;
+% figure;
+% plot(t, sig);
 
 [~, idx] = max(sig);
 att_t = idx * dt

@@ -31,7 +31,7 @@ c_ = 1;
 
 % optimal fascicle length lateral gastrocnemius from above paper
 % given in mm, converted to m
-l_opt_ = 15.9e-3;
+l_opt_ = 15.9e-2;
 
 % maximum shortening velocity from above paper
 v_0_ = 2.74;
@@ -178,72 +178,97 @@ best_activ = MC_activ(:, :, which_iter);
 
 %% Concentric and Eccentric Modelling
 
-% TEST: get functions that fit the activation curves to evaluate a(t)
-% faster when solving force ode
-%sig_fit = @(p, t) 1 ./ (1 + exp(-p(1) .* (t - p(2))));
-%a_slow_sigmoid_params = lsqcurvefit(sig_fit, [0, 0], MC_time{which_iter}, best_activ(1, 1:length(MC_time{which_iter})));
-%a_fast_sigmoid_params = lsqcurvefit(sig_fit, [0, 0], MC_time{which_iter}, best_activ(2, 1:length(MC_time{which_iter})));
-%figure;
-%plot(MC_time{which_iter}, sig_fit(a_slow_sigmoid_params, MC_time{which_iter}));
-
 % Weight of mass attached to muscle [N]
-applied_forces = [0.50, 1, 1.5, 2, 2.5, 3.0, 3.5, 4.0];
+applied_forces = [0.50, 1, 1.5, 2, 2.5, 3.0, 3.5, 4.0, 10.0];
 
 % Weightings of activation curve to test for each weight
 attenuations = [0.2, 0.4, 0.6, 0.8, 0.95];
-
+%attenuations = [0.8];
+%
 % Perform modelling for each applied weight for each activation attenuation
 % Create simulation to show in a figure for a single applied weight with a
 % curve for simulation using each attenuation
 %[t, y] = ode15s(@(t, y) dYdt(t, y, best_params, l_opt_, v_0_, c_, theta_, 1, applied_force), [1, 1000], [0, 0]');
 for app = 1 : length(applied_forces)
+    fprintf('Modelling force = %.1f N\n', applied_forces(app));
     % Store displacement, velocity, time the model ran for, and fiber 
     % activations that were used during that time interval for calculating
     % force produced
     modeled_v = cell(1, length(attenuations));
     modeled_y = cell(1, length(attenuations));
-    modeled_d_t = cell(1, length(attenuations)); % t from modelling displacement
-    modeled_a_t = cell(1, length(attenuations)); % t from modelling activation
+    modeled_t = cell(1, length(attenuations)); % t from modelling displacement
+    %modeled_a_t = cell(1, length(attenuations)); % t from modelling activation
     modeled_a = cell(1, length(attenuations));
     modeled_f = cell(1, length(attenuations));
     
     % Calculate displacement and plot
     for att = 1 : length(attenuations)
-        [t, y] = ode15s(@(t, y) dYdt(t, y, best_params, l_opt_, v_0_, c_, theta_, attenuations(att), applied_forces(app)), [0, 1000], [0, 0]');
+        fprintf('\tWith att = %.1f\n', attenuations(att));
+        % Determine a_slow and a_fast for this attenuation attempt for this
+        % weight to pass to dYdt for integration
+        dt = 0.1;
+        temp_t = 0 : dt : 1000;
+        sig = sigmoid(temp_t, [0.025, 500]);
+        sig(sig > attenuations(att)) = 0;
+        [~, idx] = max(sig);
+        att_t = idx * dt;
+        
+        fprintf('\t\tGetting attenuated a of fibers\n');
+        [~, a] = ode45(@(t_a, a) dadt(t_a, a, params.tau, params.b), [0, att_t], [0, 0]');
+        %modeled_a{att} = a';
+        a_slow = a(end, 1);
+        a_fast = a(end, 2);
+        modeled_a{att} = [a_slow, a_fast];
+        %modeled_a_t{att} = a_t';
+        
+        fprintf('\t\tIntegrating F = ma\n');
+        % Integrate the solution using attenuated activations
+        [t, y] = ode45(@(t, y) dYdt(t, y, a_slow, a_fast, best_params, l_opt_, v_0_, c_, theta_, applied_forces(app)), [0, 3], [0, 0]');
+        
+        % TEST: use euler method instead of ode solver and save result
+%         dt = 1 / 10000;
+%         t = [0 : dt : 40];
+%         y = zeros(length(t), 2);
+%         for j = 1 : length(t)-1
+%             dy = dYdt(t(j), y(j, :), a_slow, a_fast, best_params, l_opt_, v_0_, c_, theta_, applied_forces(app));
+%             y(j, :) = y(j-1, :) + (dt * dy');
+%         end
+        
         modeled_y{att} = y(:, 1)';
         modeled_v{att} = y(:, 2)';
-        modeled_d_t{att} = t';
+        modeled_t{att} = t';
     end
     
     figure;
     subplot(1, 2, 1);
     for i = 1 : length(attenuations)
         hold on;
-        plot(modeled_d_t{i}, modeled_y{i});
+        plot(modeled_t{i}, modeled_v{i});
     end
     title(sprintf('Modeled Movement When\n%.1f N Weight Applied', applied_forces(app)));
-    ylabel('Displacement');
+    ylabel('Displacement [mm]');
     xlabel('Time');
     legend('Att=0.2', 'Att=0.4', 'Att=0.6', 'Att=0.8', 'Att=1.0', 'Location', 'Southeast');
     
     % Calculate a and therefore force over the time intervals used and plot
+%     for m = 1 : length(attenuations)
+%         [t, a] = ode45(@(t, a) dadt(t, a, best_params.tau, best_params.b), [0, modeled_d_t{m}(end)], [0, 0]');
+%         modeled_a{m} = a';
+%         modeled_a_t{m} = t';
+%     end
     for m = 1 : length(attenuations)
-        [t, a] = ode45(@(t, a) dadt(t, a, best_params.tau, best_params.b), [0, modeled_d_t{m}(end)], [0, 0]');
-        modeled_a{m} = a';
-        modeled_a_t{m} = t';
-    end
-    for m = 1 : length(attenuations)
-        f = zeros(1, size(modeled_a{m}, 2));
+        f = zeros(1, length(modeled_t{m}));
         for j = 1 : size(f, 2)
             % Signature muscle_force(a_slow, a_fast, l, l_opt, v, v_0, k, c, theta)
-            f(j) = muscle_force(modeled_a{m}(1, j), modeled_a{m}(2, j), l_opt_+modeled_y{m}(j), l_opt_, modeled_v{m}(j), v_0_, k_, c_, theta_);
+            %f(j) = muscle_force(modeled_a{m}(1, j), modeled_a{m}(2, j), l_opt_+modeled_y{m}(j), l_opt_, modeled_v{m}(j), v_0_, k_, c_, theta_);
+            f(j) = muscle_force(modeled_a{m}(1), modeled_a{m}(2), l_opt_+modeled_y{m}(j), l_opt_, modeled_v{m}(j), v_0_, k_, c_, theta_);
         end
         modeled_f{m} = f;
     end
     subplot(1, 2, 2);
     for i = 1 : length(attenuations)
         hold on;
-        plot(modeled_a_t{i}, modeled_f{i});
+        plot(modeled_t{i}, modeled_f{i});
     end
     title(sprintf('Modeled Force when\n%.1f N Weight Applied', applied_forces(app)));
     ylabel('Force');
@@ -252,21 +277,77 @@ for app = 1 : length(applied_forces)
 end
 
 
+% Attempt plotting figures where try different masses for single activation level
+% for att = 1 : length(attenuations)
+%     
+%     modeled_v = cell(1, length(applied_forces));
+%     modeled_y = cell(1, length(applied_forces));
+%     modeled_t = cell(1, length(applied_forces));
+%     modeled_a = cell(1, length(applied_forces));
+%     modeled_f = cell(1, length(applied_forces));
+%     
+%     % get activation of fibers to use for attaching different masses to
+%     dt = 0.1;
+%     temp_t = 0 : dt : 1000;
+%     sig = sigmoid(temp_t, [0.025, 500]);
+%     sig(sig > attenuations(att)) = 0;
+%     [~, idx] = max(sig);
+%     att_t = idx * dt;
+% 
+%     [~, a] = ode45(@(t_a, a) dadt(t_a, a, params.tau, params.b), [0, att_t], [0, 0]');
+%     a_slow = a(end, 1);
+%     a_fast = a(end, 2);
+%     modeled_a{att} = [a_slow, a_fast];
+%     
+%     % Model displacement and velocity for each mass and save
+%     for app = 1 : length(applied_forces)
+%         [t, y] = ode23(@(t, y) dYdt(t, y, a_slow, a_fast, best_params, l_opt_, v_0_, c_, theta_, applied_forces(app)), [0, 10], [0, 0]');
+%         modeled_y{app} = y(:, 1)';
+%         modeled_v{app} = y(:, 2)';
+%         modeled_t{app} = t';
+%     end
+%     
+%     % Use displacement and velocity to regenerate force production
+%     for app = 1 : length(applied_forces)
+%         force = zeros(1, length(modeled_t{app}));
+%         for j = 1 : length(force)
+%             f(j) = muscle_force(a_slow, a_fast, l_opt_+modeled_y{app}(j), l_opt_, modeled_v{app}(j), v_0_, k_, c_, theta_);
+%         end
+%         modeled_f{app} = force;
+%     end
+%     
+%     figure;
+%     subplot(1, 2, 1);
+%     for m = 1 : length(applied_forces)
+%         hold on;
+%         plot(modeled_t{m}, modeled_v{m}.*1000);
+%     end
+%     title(sprintf('displacement when att = %.1f', attenuations(att)));
+%     
+%     subplot(1, 2, 2);
+%     for m = 1 : length(applied_forces)
+%         hold on;
+%         plot(modeled_t{m}, modeled_f{m});
+%     end
+%     title(sprintf('force when att = %.1f', attenuations(att)));
+%     
+% end
+
 %% Model Functions
 
 % Function for integrating motion instead of current anon fxn dydt
-function out = dYdt(t, y, params, l_opt, v_0, c, theta, attenuation, applied_force)
-    dt = 0.1;
-    temp_t = 0 : dt : 1000;
-    sig = sigmoid(temp_t, [0.025, 500]);
-    sig(sig > attenuation) = 0;
-    [~, idx] = max(sig);
-    att_t = idx * dt;
+function out = dYdt(t, y, a_slow, a_fast, params, l_opt, v_0, c, theta, applied_force)
+%     dt = 0.1;
+%     temp_t = 0 : dt : 1000;
+%     sig = sigmoid(temp_t, [0.025, 500]);
+%     sig(sig > attenuation) = 0;
+%     [~, idx] = max(sig);
+%     att_t = idx * dt;
     
 
-    [~, a] = ode45(@(t_a, a) dadt(t_a, a, params.tau, params.b), [0, att_t], [0, 0]');
-    a_slow = a(end, 1);
-    a_fast = a(end, 2);
+%     [~, a] = ode45(@(t_a, a) dadt(t_a, a, params.tau, params.b), [0, att_t], [0, 0]');
+%     a_slow = a(end, 1);
+%     a_fast = a(end, 2);
     
     % Signatures
     % total_muscle_force(a_slow, a_fast, l, l_opt, v_0, k, c, theta, F_applied, direction)
@@ -278,11 +359,12 @@ function out = dYdt(t, y, params, l_opt, v_0, c, theta, attenuation, applied_for
     %out(2) = (total_active_force(a_slow, a_fast, l_opt-y(2), y(1), v_0, params.k) - applied_force) / applied_force/9.8;
     % doesn't work but right
     %out(2) = (muscle_force(a_slow, a_fast, l_opt+y(1), l_opt, y(2), v_0, params.k, c, theta) - applied_force) / (applied_force/9.8);
-    
+    %disp(t);
     out = [ ...
         y(2); ...
         %(total_active_force(a_slow, a_fast, l_opt+y(1), y(2), v_0, params.k) - applied_force) / applied_force/9.8];
         (muscle_force(a_slow, a_fast, l_opt+y(1), l_opt, y(2), v_0, params.k, c, theta) - applied_force) / (applied_force/9.8)];
+        %(applied_force - muscle_force(a_slow, a_fast, l_opt+y(1), l_opt, y(2), v_0, params.k, c, theta)) / (applied_force/9.8)];
 end
 
 % Function for integrating activation
