@@ -192,7 +192,7 @@ best_activ = MC_activ(:, :, which_iter);
 % Weight of mass attached to muscle [N]
 %applied_forces = [0.50, 1, 1.5, 2, 2.5, 3.0, 3.5, 4.0, 10.0];
 %applied_forces = [1.0, 2.0, 3.0];
-applied_forces = [0.5, 1.0, 1.5];
+applied_forces = [0.5];
 
 % Weightings of activation curve to test for each weight
 %attenuations = [0.2, 0.4, 0.6, 0.8, 0.95];
@@ -214,7 +214,7 @@ for app = 1 : length(applied_forces)
     modeled_f = cell(1, length(attenuations));
     
     % Calculate displacement and plot
-    for att = 1 : length(attenuations)
+    parfor att = 1 : length(attenuations)
         % Copy broadcast variables for parfor loop
         params_copy = best_params;
         applied_forces_copy = applied_forces;
@@ -238,10 +238,10 @@ for app = 1 : length(applied_forces)
         fprintf('\t\tIntegrating F = ma\n');
         % Integrate the solution using attenuated activations
         %[t, y] = ode45(@(t, y) dYdt(t, y, a_slow, a_fast, params_copy, l_opt_, v_0_, c_, theta_, applied_forces_copy(app)), [0, 20], [0, 0]');
-        [t, y] = ode45(@(t, y) dYdt(t, y, a_slow, a_fast, params_copy, l_opt_, v_0_, c_, theta_, applied_forces_copy(app)), [0, 2], [0, 0]');
+        [t, y] = ode45(@(t, y) dYdt(t, y, a_slow, a_fast, params_copy, l_opt_, v_0_, c_, theta_, applied_forces_copy(app)), [0, 10], [0, 0]');
         
         % TEST: use euler method instead of ode solver and save result
-%         dt = 1 / 2000000;
+%         dt = 1 / 100000;
 %         t = [0 : dt : 5];
 %         y = zeros(length(t), 2);
 %         for j = 1 : length(t)-1
@@ -353,7 +353,7 @@ function [out] = dYdt(t, y, a_slow, a_fast, params, l_opt, v_0, c, theta, applie
     out = [ ...
         y(2)*l_opt; ...
         %(applied_force - muscle_force(a_slow, a_fast, l_opt+y(1), l_opt, y(2)/l_opt, v_0, params.k, c, theta)) / applied_force/9.8];
-        (applied_force - f) / applied_force/9.8];
+        (applied_force - f) / (applied_force/9.8)];
 end
 
 % Function for integrating activation
@@ -413,29 +413,6 @@ function F_v = force_velocity(v, v_0, k)
         F_v = (1 - (v/v_0)) / (1 + (v/(v_0*k)));
     else
         F_v = 1.5 - 0.5 * ((1 + (v/v_0)) / (1 - ((7.56*v)/(v_0*k))));
-    end
-end
-
-% Force from velocity calculated by inverting force-velocity relationship
-% above for the purpose of determine new length
-% Requires knowledge of concentric or eccentric muscle activity because
-% negative velocity corresponds to concentric or shortening movement
-function v = velocity_from_force(F, v_0, k, direction)
-    % For isometric case, just pass F as 0 because direction should be
-    % passed as 'isometric' yielding desired output of velocity = 0 since
-    % muscle is not contracting or elongating
-    assert((strcmp(direction, 'concentric') || ...
-        strcmp(direction, 'eccentric') || ...
-        strcmp(direction, 'isometric')), ...
-        'velocity_from_force: must pass direction as eccentric or concentric');
-    % Using mean curvature of slow and fast fibers because not specified
-    % how to use them separately in the papers researched.
-    if strcmp(direction, 'concentric')
-        v = ((1 - F) * (v_0 * mean(k))) / (mean(k) - F);
-    elseif strcmp(direction, 'eccentric')
-        v = (2 - 2 * F) / ((1/v_0) + ((3*7.56)/(v_0*mean(k))) - ((2*7.56*F)/(v_0*mean(k))));
-    else
-        v = 0;
     end
 end
 

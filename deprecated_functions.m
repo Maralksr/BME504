@@ -36,6 +36,30 @@ function F_m = total_muscle_force(a_slow, a_fast, l, l_opt, v_0, k, c, theta, F_
     F_m = c * (F_f + F_p) * cos(theta);
 end
 
+% DEPRECATED: dependency of total_muscle_force() and wasn't necessarily
+% accurate to deduce velocity in this way
+% Force from velocity calculated by inverting force-velocity relationship
+% above for the purpose of determine new length
+% Requires knowledge of concentric or eccentric muscle activity because
+% negative velocity corresponds to concentric or shortening movement
+function v = velocity_from_force(F, v_0, k, direction)
+    % For isometric case, just pass F as 0 because direction should be
+    % passed as 'isometric' yielding desired output of velocity = 0 since
+    % muscle is not contracting or elongating
+    assert((strcmp(direction, 'concentric') || ...
+        strcmp(direction, 'eccentric') || ...
+        strcmp(direction, 'isometric')), ...
+        'velocity_from_force: must pass direction as eccentric or concentric');
+    % Using mean curvature of slow and fast fibers because not specified
+    % how to use them separately in the papers researched.
+    if strcmp(direction, 'concentric')
+        v = ((1 - F) * (v_0 * mean(k))) / (mean(k) - F);
+    elseif strcmp(direction, 'eccentric')
+        v = (2 - 2 * F) / ((1/v_0) + ((3*7.56)/(v_0*mean(k))) - ((2*7.56*F)/(v_0*mean(k))));
+    else
+        v = 0;
+    end
+end
 
 % DEPRECATED: were used for sanity checks, no longer necessary in script
 function F_f = total_active_force_slow(a_slow, l, v, v_0, k)
