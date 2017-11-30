@@ -7,6 +7,7 @@
 % running goats predicted by one-element and two-element Hill-type models"
 % by Sabrina S.M. Lee et. al. published in Journal of Biomechanics
 
+format compact;
 close all;
 clear all;
 
@@ -77,6 +78,7 @@ legend('Whole Muscle Activation', 'Slow Fiber Activation', 'Fast Fiber Activatio
     'Location', 'Southeast');
 ylabel('Activation Level');
 xlabel('Time [ms]');
+legend('Whole muscle', 'Slow fibers', 'Fast fibers');
 
 figure;
 plot(t, force);
@@ -166,11 +168,15 @@ for i = 1 : MAX_ITER
     hold on;
 end
 title('MC Force(t)');
+ylabel('Force [N]');
+xlabel('Time');
 
 % Include maximal force curve in subplot
 subplot(1, 2, 2);
 plot(MC_time{which_iter}, MC_force(which_iter, 1:length(MC_time{which_iter})));
 title('Max Force(t)');
+ylabel('Force [N]');
+xlabel('Time');
 
 % Pull best parameter set and activation curve the produced maximum force
 best_params = MC_params{which_iter};
@@ -179,31 +185,36 @@ best_activ = MC_activ(:, :, which_iter);
 %% Concentric and Eccentric Modelling
 
 % Weight of mass attached to muscle [N]
-applied_forces = [0.50, 1, 1.5, 2, 2.5, 3.0, 3.5, 4.0, 10.0];
+%applied_forces = [0.50, 1, 1.5, 2, 2.5, 3.0, 3.5, 4.0, 10.0];
+%applied_forces = [1.0, 2.0, 3.0];
+applied_forces = [0.5, 1.0, 1.5];
 
 % Weightings of activation curve to test for each weight
-attenuations = [0.2, 0.4, 0.6, 0.8, 0.95];
-%attenuations = [0.8];
-%
+%attenuations = [0.2, 0.4, 0.6, 0.8, 0.95];
+attenuations = [.3, .6, .95];
+
 % Perform modelling for each applied weight for each activation attenuation
 % Create simulation to show in a figure for a single applied weight with a
 % curve for simulation using each attenuation
 %[t, y] = ode15s(@(t, y) dYdt(t, y, best_params, l_opt_, v_0_, c_, theta_, 1, applied_force), [1, 1000], [0, 0]');
 for app = 1 : length(applied_forces)
-    fprintf('Modelling force = %.1f N\n', applied_forces(app));
+    fprintf('Modelling force = %.2f N\n', applied_forces(app));
     % Store displacement, velocity, time the model ran for, and fiber 
     % activations that were used during that time interval for calculating
     % force produced
     modeled_v = cell(1, length(attenuations));
     modeled_y = cell(1, length(attenuations));
-    modeled_t = cell(1, length(attenuations)); % t from modelling displacement
-    %modeled_a_t = cell(1, length(attenuations)); % t from modelling activation
+    modeled_t = cell(1, length(attenuations));
     modeled_a = cell(1, length(attenuations));
     modeled_f = cell(1, length(attenuations));
     
     % Calculate displacement and plot
-    for att = 1 : length(attenuations)
-        fprintf('\tWith att = %.1f\n', attenuations(att));
+    parfor att = 1 : length(attenuations)
+        % Copy broadcast variables for parfor loop
+        params_copy = best_params;
+        applied_forces_copy = applied_forces;
+        
+        fprintf('\tWith att = %.2f\n', attenuations(att));
         % Determine a_slow and a_fast for this attenuation attempt for this
         % weight to pass to dYdt for integration
         dt = 0.1;
@@ -214,24 +225,23 @@ for app = 1 : length(applied_forces)
         att_t = idx * dt;
         
         fprintf('\t\tGetting attenuated a of fibers\n');
-        [~, a] = ode45(@(t_a, a) dadt(t_a, a, params.tau, params.b), [0, att_t], [0, 0]');
-        %modeled_a{att} = a';
+        %[~, a] = ode45(@(t_a, a) dadt(t_a, a, params.tau, params.b), [0, att_t], [0, 0]');
+        [~, a] = ode45(@(t_a, a) dadt(t_a, a, params_copy.tau, params_copy.b), [0, att_t], [0, 0]');
         a_slow = a(end, 1);
         a_fast = a(end, 2);
         modeled_a{att} = [a_slow, a_fast];
-        %modeled_a_t{att} = a_t';
         
         fprintf('\t\tIntegrating F = ma\n');
         % Integrate the solution using attenuated activations
-        [t, y] = ode45(@(t, y) dYdt(t, y, a_slow, a_fast, best_params, l_opt_, v_0_, c_, theta_, applied_forces(app)), [0, 3], [0, 0]');
-        
+        [t, y] = ode45(@(t, y) dYdt(t, y, a_slow, a_fast, params_copy, l_opt_, v_0_, c_, theta_, applied_forces_copy(app)), [0, 20], [0, 0]');
+
         % TEST: use euler method instead of ode solver and save result
-%         dt = 1 / 10000;
-%         t = [0 : dt : 40];
+%         dt = 1 / 2000000;
+%         t = [0 : dt : 7];
 %         y = zeros(length(t), 2);
 %         for j = 1 : length(t)-1
 %             dy = dYdt(t(j), y(j, :), a_slow, a_fast, best_params, l_opt_, v_0_, c_, theta_, applied_forces(app));
-%             y(j, :) = y(j-1, :) + (dt * dy');
+%             y(j+1, :) = y(j, :) + (dt * dy');
 %         end
         
         modeled_y{att} = y(:, 1)';
@@ -241,14 +251,15 @@ for app = 1 : length(applied_forces)
     
     figure;
     subplot(1, 2, 1);
-    for i = 1 : length(attenuations)
+    for m = 1 : length(attenuations)
         hold on;
-        plot(modeled_t{i}, modeled_v{i});
+        plot(modeled_t{m}, modeled_y{m});
     end
     title(sprintf('Modeled Movement When\n%.1f N Weight Applied', applied_forces(app)));
-    ylabel('Displacement [mm]');
+    ylabel('Displacement [cm]');
     xlabel('Time');
-    legend('Att=0.2', 'Att=0.4', 'Att=0.6', 'Att=0.8', 'Att=1.0', 'Location', 'Southeast');
+    %legend('Att=0.2', 'Att=0.4', 'Att=0.6', 'Att=0.8', 'Att=1.0', 'Location', 'Southeast');
+    legend('Att=0.3', 'Att=0.6', 'Att=0.95', 'Location', 'Northeast');
     
     % Calculate a and therefore force over the time intervals used and plot
 %     for m = 1 : length(attenuations)
@@ -259,9 +270,7 @@ for app = 1 : length(applied_forces)
     for m = 1 : length(attenuations)
         f = zeros(1, length(modeled_t{m}));
         for j = 1 : size(f, 2)
-            % Signature muscle_force(a_slow, a_fast, l, l_opt, v, v_0, k, c, theta)
-            %f(j) = muscle_force(modeled_a{m}(1, j), modeled_a{m}(2, j), l_opt_+modeled_y{m}(j), l_opt_, modeled_v{m}(j), v_0_, k_, c_, theta_);
-            f(j) = muscle_force(modeled_a{m}(1), modeled_a{m}(2), l_opt_+modeled_y{m}(j), l_opt_, modeled_v{m}(j), v_0_, k_, c_, theta_);
+            f(j) = muscle_force(modeled_a{m}(1), modeled_a{m}(2), modeled_y{m}(j), l_opt_, modeled_v{m}(j), v_0_, k_, c_, theta_);
         end
         modeled_f{m} = f;
     end
@@ -273,7 +282,8 @@ for app = 1 : length(applied_forces)
     title(sprintf('Modeled Force when\n%.1f N Weight Applied', applied_forces(app)));
     ylabel('Force');
     xlabel('Time');
-    legend('Att=0.2', 'Att=0.4', 'Att=0.6', 'Att=0.8', 'Att=1.0', 'Location', 'Southeast');
+    %legend('Att=0.2', 'Att=0.4', 'Att=0.6', 'Att=0.8', 'Att=1.0', 'Location', 'Southeast');
+    legend('Att=0.3', 'Att=0.6', 'Att=0.95', 'Location', 'Northeast');
 end
 
 
@@ -348,11 +358,7 @@ function out = dYdt(t, y, a_slow, a_fast, params, l_opt, v_0, c, theta, applied_
 %     [~, a] = ode45(@(t_a, a) dadt(t_a, a, params.tau, params.b), [0, att_t], [0, 0]');
 %     a_slow = a(end, 1);
 %     a_fast = a(end, 2);
-    
-    % Signatures
-    % total_muscle_force(a_slow, a_fast, l, l_opt, v_0, k, c, theta, F_applied, direction)
-    % total_active_force(a_slow, a_fast, l, v, v_0, k)
-    % muscle_force(a_slow, a_fast, l, l_opt, v, v_0, k, c, theta)  better for integrating here
+
     %out = zeros(2, 1);
     %out(1) = y(2);
     % works but not really right
@@ -361,10 +367,10 @@ function out = dYdt(t, y, a_slow, a_fast, params, l_opt, v_0, c, theta, applied_
     %out(2) = (muscle_force(a_slow, a_fast, l_opt+y(1), l_opt, y(2), v_0, params.k, c, theta) - applied_force) / (applied_force/9.8);
     %disp(t);
     out = [ ...
-        y(2); ...
+        y(2)*l_opt; ...
         %(total_active_force(a_slow, a_fast, l_opt+y(1), y(2), v_0, params.k) - applied_force) / applied_force/9.8];
-        (muscle_force(a_slow, a_fast, l_opt+y(1), l_opt, y(2), v_0, params.k, c, theta) - applied_force) / (applied_force/9.8)];
-        %(applied_force - muscle_force(a_slow, a_fast, l_opt+y(1), l_opt, y(2), v_0, params.k, c, theta)) / (applied_force/9.8)];
+        (applied_force - muscle_force(a_slow, a_fast, l_opt+y(1), l_opt, y(2)/l_opt, v_0, params.k, c, theta)) / applied_force/9.8];
+        %(applied_force - muscle_force(a_slow, a_fast, l_opt+y(1), l_opt, y(2), v_0, params.k, c, theta)) / applied_force/9.8];
 end
 
 % Function for integrating activation

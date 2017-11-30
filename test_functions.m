@@ -4,25 +4,27 @@ clear all;
 
 tau_act_ = [34.06, 18.14];
 b_ = [0.73, 9.90];
-attenuation = 0.3;
+attenuation = 0.5;
 
 dt = 0.1;
 t = 0 : dt : 1000;
-sig = attenuation.*sigmoid(t, [.025, 500]);
+sig = attenuation .* sigmoid(t, [0.025, 500]);
 figure;
 plot(t, sig);
+title('should converge to atten');
 
 % sig(sig > attenuation) = 0;
-% figure;
-% plot(t, sig);
+% [~, idx] = max(sig);
+% att_t = idx * dt;
 
-[~, idx] = max(sig);
-att_t = idx * dt
 
-[t, a] = ode45(@(t, a) dadt(t, a, tau_act_, b_), [0, att_t], [0, 0]');
+[t, a] = ode45(@(t_a, a) dadt(t_a, a, params.tau, params.b), [0, 1000], [0, 0]');
+a_slow = a(end, 1);
+a_fast = a(end, 2);
+
+
 figure;
-plot(t, a);
-
+plot(
 
 
 
