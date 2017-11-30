@@ -1,6 +1,6 @@
 
 
-% DEPRICATED: converted to function dadt for easy integration
+% DEPRECATED: converted to function dadt for easy integration
 % Transfer functions
 % a1_dot + ((1/tau_act1)*(beta1 + (1-beta1)*EMG(t-t_off))) * a1(t) = (1/tau_act1) * EMG(t-t_off)
 % a2_dot + ((1/tau_act2)*(beta2 + (1-beta2)*a1(t))) * a2(t) = (1/tau_act2) * a1(t)
@@ -20,7 +20,7 @@ function [a_dot_slow, a_dot_fast] = activation_transfer(a, tau, b)
     a_dot_fast = (1/tau(2))*a(2) - ((1/tau(2))*(b(2)+(1-b(2))*a(2)))*a(3);
 end
 
-% DEPRICATED: incorrect, replaced with muscle_force() that takes v as input
+% DEPRECATED: incorrect, replaced with muscle_force() that takes v as input
 % instead of inaccurately determing v inversely from F and requiring
 % direction as char array
 % Total muscle force
@@ -37,7 +37,7 @@ function F_m = total_muscle_force(a_slow, a_fast, l, l_opt, v_0, k, c, theta, F_
 end
 
 
-% DEPRICATED: were used for sanity checks, no longer necessary in script
+% DEPRECATED: were used for sanity checks, no longer necessary in script
 function F_f = total_active_force_slow(a_slow, l, v, v_0, k)
     F_f = a_slow * force_length_active(l) * force_velocity(v, v_0, k(1));
 end
