@@ -244,9 +244,9 @@ for app = 1 : length(applied_forces)
 %             y(j+1, :) = y(j, :) + (dt * dy');
 %         end
         
-        modeled_y{att} = y(:, 1)';
-        modeled_v{att} = y(:, 2)';
-        modeled_t{att} = t';
+        modeled_y{att} = y(:, 1);
+        modeled_v{att} = y(:, 2);
+        modeled_t{att} = t;
     end
     
     figure;
