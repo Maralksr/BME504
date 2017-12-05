@@ -145,9 +145,6 @@ for i = 1 : MAX_ITER
     % Use activation soln to calculate force(t)
     force = zeros(1, length(t));
     for j = 1 : length(force)
-        %total_muscle_force(a_slow, a_fast, l, l_opt, v_0, k, c, theta, F_applied, direction)
-        %muscle_force(a_slow, a_fast, l, l_opt, v, v_0, k, c, theta)
-        %force(j) = total_muscle_force(a(1, j), a(2, j), l_opt_, l_opt_, v_0_, params.k, c_, 0, theta_, 'isometric');
         force(j) = muscle_force(a(1, j), a(2, j), l_opt_, l_opt_, 0, v_0_, params.k, c_, theta_);
     end
     
@@ -155,6 +152,19 @@ for i = 1 : MAX_ITER
     % Recall MC_force: M x N: M -> which iteration, N -> force(t)
     MC_force(i, 1:length(force)) = force;
 end
+
+% SANITY CHECK
+% Check what fraction of MC trials produced activation curves where fast
+% fibers activate more quickly than slow fibers. This would be inaccurate
+% behavior.
+% for i = 1 : MAX_ITER
+%     figure;
+%     plot(MC_time{i}, MC_activ(1, 1:length(MC_time{i}), i), 'g');
+%     hold on;
+%     plot(MC_time{i}, MC_activ(2, 1:length(MC_time{i}), i), 'r');
+% end
+% title('MC activation');
+
 
 % Find where the maximum force occurred after MC modelling
 % Recall form above that M dim of MC_force corresponds to iteration number
@@ -234,6 +244,7 @@ for app = 1 : length(applied_forces)
         a_slow = a(end, 1);
         a_fast = a(end, 2);
         modeled_a{att} = [a_slow, a_fast];
+        init_force = muscle_force(a_slow, a_fast, l_opt_, l_opt_, 0, v_0_, k_, c_, theta_);
         
         fprintf('\t\tIntegrating F = ma\n');
         % Integrate the solution using attenuated activations
@@ -251,8 +262,9 @@ for app = 1 : length(applied_forces)
         
         modeled_y{att} = y(:, 1);
         modeled_v{att} = y(:, 2);
+        %modeled_f{att} = y(:, 3);
         modeled_t{att} = t;
-        modeled_f{att} = f;
+        
     end
     
     figure;
@@ -353,7 +365,8 @@ function [out] = dYdt(t, y, a_slow, a_fast, params, l_opt, v_0, c, theta, applie
     out = [ ...
         y(2)*l_opt; ...
         %(applied_force - muscle_force(a_slow, a_fast, l_opt+y(1), l_opt, y(2)/l_opt, v_0, params.k, c, theta)) / applied_force/9.8];
-        (applied_force - f) / (applied_force/9.8)];
+        (applied_force - f) / (applied_force/9.8)]; ...
+        %f];
 end
 
 % Function for integrating activation
@@ -365,9 +378,9 @@ end
 
 % Total muscle force that doesn't depend on passing contraction condition
 % and depends on v explicitly. Better for integration during simulation.
-function F_m = muscle_force(a_slow, a_fast, l, l_opt, v, v_0, k, c, theta)
-    F_f = total_active_force(a_slow, a_fast, l/l_opt, v, v_0, k);
-    F_p = force_length_passive(l/l_opt);
+function F_m = muscle_force(a_slow, a_fast, len, l_opt, v, v_0, k, c, theta)
+    F_f = total_active_force(a_slow, a_fast, len/l_opt, v, v_0, k);
+    F_p = force_length_passive(len/l_opt);
     F_m = c * (F_f + F_p) * cos(theta);    
 end
 
@@ -388,18 +401,18 @@ end
 
 % Force-length relationship (F_a-hat(l) and F_p-hat(l) in paper)
 % F_a(l) = (-878.24*(l * 1.253)^2 + 2200.4*(l * 1.254) - 1192) / 186.24
-function F_active = force_length_active(l)
+function F_active = force_length_active(len)
     % Returns force-length relationship F_l of active component
     % l is fascicle length
-    F_active = (-878.25*(l*1.253)^2 + 2200.4*(l*1.254) - 1192) / 186.24;
+    F_active = (-878.25*(len*1.253)^2 + 2200.4*(len*1.254) - 1192) / 186.24;
 end
 
 % Force-length relationship (F_p-hat(l) in paper)
 % F_p(l) = exp(-1.3 + 3.8*(l * 1.253)) / 186.24
-function F_passive = force_length_passive(l)
+function F_passive = force_length_passive(len)
     % Returns force-length relationship F_l of passive component
     % l is fascicle length
-    F_passive = exp(-1.3 + 3.8*(l*1.253)) / 186.24;
+    F_passive = exp(-1.3 + 3.8*(len*1.253)) / 186.24;
 end
 
 % Force-velocity relationship (F_v-hat(v) in paper)
@@ -409,6 +422,7 @@ function F_v = force_velocity(v, v_0, k)
     % Returns force-velocity relationship F_v as scalar F_v-hat
     % Expects v as v(t), v_0 as maximum unloaded shortening velocity,
     % and k as force-velocity curvature
+    v = v / v_0;
     if v <= 0 
         F_v = (1 - (v/v_0)) / (1 + (v/(v_0*k)));
     else
