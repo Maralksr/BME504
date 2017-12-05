@@ -249,7 +249,7 @@ for app = 1 : length(applied_forces)
         fprintf('\t\tIntegrating F = ma\n');
         % Integrate the solution using attenuated activations
         %[t, y] = ode45(@(t, y) dYdt(t, y, a_slow, a_fast, params_copy, l_opt_, v_0_, c_, theta_, applied_forces_copy(app)), [0, 20], [0, 0]');
-        [t, y] = ode45(@(t, y) dYdt(t, y, a_slow, a_fast, params_copy, l_opt_, v_0_, c_, theta_, applied_forces_copy(app)), [0, 10], [0, 0]');
+        [t, y] = ode45(@(t, y) dYdt(t, y, a_slow, a_fast, params_copy, l_opt_, v_0_, c_, theta_, applied_forces_copy(app)), [0, 30], [0, 0]', options);
         
         % TEST: use euler method instead of ode solver and save result
 %         dt = 1 / 100000;
