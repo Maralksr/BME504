@@ -1,4 +1,61 @@
 
+% Attempt plotting figures where try different masses for single activation level
+% for att = 1 : length(attenuations)
+%     
+%     modeled_v = cell(1, length(applied_forces));
+%     modeled_y = cell(1, length(applied_forces));
+%     modeled_t = cell(1, length(applied_forces));
+%     modeled_a = cell(1, length(applied_forces));
+%     modeled_f = cell(1, length(applied_forces));
+%     
+%     % get activation of fibers to use for attaching different masses to
+%     dt = 0.1;
+%     temp_t = 0 : dt : 1000;
+%     sig = sigmoid(temp_t, [0.025, 500]);
+%     sig(sig > attenuations(att)) = 0;
+%     [~, idx] = max(sig);
+%     att_t = idx * dt;
+% 
+%     [~, a] = ode45(@(t_a, a) dadt(t_a, a, params.tau, params.b), [0, att_t], [0, 0]');
+%     a_slow = a(end, 1);
+%     a_fast = a(end, 2);
+%     modeled_a{att} = [a_slow, a_fast];
+%     
+%     % Model displacement and velocity for each mass and save
+%     for app = 1 : length(applied_forces)
+%         [t, y] = ode23(@(t, y) dYdt(t, y, a_slow, a_fast, best_params, l_opt_, v_0_, c_, theta_, applied_forces(app)), [0, 10], [0, 0]');
+%         modeled_y{app} = y(:, 1)';
+%         modeled_v{app} = y(:, 2)';
+%         modeled_t{app} = t';
+%     end
+%     
+%     % Use displacement and velocity to regenerate force production
+%     for app = 1 : length(applied_forces)
+%         force = zeros(1, length(modeled_t{app}));
+%         for j = 1 : length(force)
+%             f(j) = muscle_force(a_slow, a_fast, l_opt_+modeled_y{app}(j), l_opt_, modeled_v{app}(j), v_0_, k_, c_, theta_);
+%         end
+%         modeled_f{app} = force;
+%     end
+%     
+%     figure;
+%     subplot(1, 2, 1);
+%     for m = 1 : length(applied_forces)
+%         hold on;
+%         plot(modeled_t{m}, modeled_v{m}.*1000);
+%     end
+%     title(sprintf('displacement when att = %.1f', attenuations(att)));
+%     
+%     subplot(1, 2, 2);
+%     for m = 1 : length(applied_forces)
+%         hold on;
+%         plot(modeled_t{m}, modeled_f{m});
+%     end
+%     title(sprintf('force when att = %.1f', attenuations(att)));
+%     
+% end
+
+
 
 % DEPRECATED: converted to function dadt for easy integration
 % Transfer functions
