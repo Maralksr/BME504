@@ -198,16 +198,15 @@ best_activ = MC_activ(:, :, which_iter);
 % Weight of mass attached to muscle [N]
 %applied_forces = [0.50, 1, 1.5, 2, 2.5, 3.0, 3.5, 4.0, 10.0];
 %applied_forces = [1.0, 2.0, 3.0];
-applied_forces = [0.5];
+applied_forces = [0.5, 1.0];
 
 % Weightings of activation curve to test for each weight
 %attenuations = [0.2, 0.4, 0.6, 0.8, 0.95];
 attenuations = [.33, .66, .98];
 
-% Perform modelling for each applied weight for each activation attenuation
+% Perform modelling for each applied weight for each activation level
 % Create simulation to show in a figure for a single applied weight with a
-% curve for simulation using each attenuation
-%[t, y] = ode15s(@(t, y) dYdt(t, y, best_params, l_opt_, v_0_, c_, theta_, 1, applied_force), [1, 1000], [0, 0]');
+% curve for simulation using each activaiton level
 for app = 1 : length(applied_forces)
     fprintf('Modelling force = %.2f N\n', applied_forces(app));
     % Store displacement, velocity, time the model ran for, and fiber 
@@ -244,7 +243,7 @@ for app = 1 : length(applied_forces)
         
         fprintf('\t\tIntegrating F = ma\n');
         % Integrate the solution using attenuated activations
-        [t, y] = ode45(@(t, y) dYdt(t, y, a_slow, a_fast, params_copy, l_opt_, v_0_, c_, theta_, applied_forces_copy(app)), [0, 10], [0, 0]', options);
+        [t, y] = ode45(@(t, y) dYdt(t, y, a_slow, a_fast, params_copy, l_opt_, v_0_, c_, theta_, applied_forces_copy(app)), [0, 20], [0, 0]', options);
         
         % TEST: use euler method instead of ode solver and save result
 %         dt = 1 / 100000;
@@ -269,10 +268,10 @@ for app = 1 : length(applied_forces)
         plot(modeled_t{m}, modeled_y{m});
     end
     title(sprintf('Modeled Movement When\n%.1f N Weight Applied', applied_forces(app)));
-    ylabel('Displacement [cm]');
+    ylabel('Displacement [m]');
     xlabel('Time');
     %legend('Att=0.2', 'Att=0.4', 'Att=0.6', 'Att=0.8', 'Att=1.0', 'Location', 'Southeast');
-    legend('a=0.3', 'a=0.6', 'a=0.95', 'Location', 'Southwest');
+    legend('a=0.33', 'a=0.66', 'a=0.98', 'Location', 'Northeast');
     
     for m = 1 : length(attenuations)
         f = zeros(1, length(modeled_t{m}));
@@ -290,7 +289,7 @@ for app = 1 : length(applied_forces)
     ylabel('Force');
     xlabel('Time');
     %legend('Att=0.2', 'Att=0.4', 'Att=0.6', 'Att=0.8', 'Att=1.0', 'Location', 'Southeast');
-    legend('a=0.3', 'a=0.6', 'a=0.95', 'Location', 'Southwest');
+    legend('a=0.33', 'a=0.66', 'a=0.98', 'Location', 'Northeast');
 end
 
 % Insert inverted modelling and plotting strategy from deprecated_functions
