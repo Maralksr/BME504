@@ -42,7 +42,7 @@ k_ = [0.18, 0.29];
 
 % Set ode solver tolerance params
 %options = odeset('RelTol', 1e-6, 'AbsTol', 1e-6);
-options = odeset('RelTol', 1e-4, 'AbsTol', 1e-4);
+options = odeset('RelTol', 1e-5, 'AbsTol', 1e-4);
 
 
 %% Running Basic Model
@@ -198,7 +198,7 @@ best_activ = MC_activ(:, :, which_iter);
 % Weight of mass attached to muscle [N]
 %applied_forces = [0.50, 1, 1.5, 2, 2.5, 3.0, 3.5, 4.0, 10.0];
 %applied_forces = [1.0, 2.0, 3.0];
-applied_forces = [0.5, 1.0];
+applied_forces = [0.5, 1.0, 1.5];
 
 % Weightings of activation curve to test for each weight
 %attenuations = [0.2, 0.4, 0.6, 0.8, 0.95];
